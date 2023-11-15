@@ -2313,7 +2313,14 @@ inline const LocalKinematics & LocalKinematics::update(const LocalKinematics & n
     CheckedVector3 & thisAngAcc = angAcc;
 
     CheckedVector3 currentAngVel;
+#if defined(__GNUC__) and not defined(__clang__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
     CheckedVector3 currentAngAcc;
+#if defined(__GNUC__) and not defined(__clang__)
+#  pragma GCC diagnostic pop
+#endif
 
     const Orientation & newOri = newValue.orientation; // new angular variables used for the update
     const CheckedVector3 & newAngVel = newValue.angVel;
