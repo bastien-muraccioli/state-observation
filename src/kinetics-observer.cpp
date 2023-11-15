@@ -1175,7 +1175,7 @@ void KineticsObserver::clearContacts()
 
 Index KineticsObserver::getNumberOfSetContacts() const
 {
-  Index out;
+  Index out = 0;
   for(const auto & c : contacts_)
   {
     if(c.isSet)
