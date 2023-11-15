@@ -461,6 +461,32 @@ Vector6 KineticsObserver::getUnmodeledWrench() const
   return worldCentroidStateVector_.segment<sizeWrench>(unmodeledWrenchIndex());
 }
 
+Vector6 KineticsObserver::getUnmodeledWrenchIn(const kine::Kinematics & userTargetframeKine)
+{
+  Vector3 forceCentroidFrame = getUnmodeledWrench().segment<sizeForce>(0);
+  Vector3 torqueCentroidFrame = getUnmodeledWrench().segment<sizeTorque>(sizeForce);
+
+  const Vector3 & userCentroidPosition = com_();
+  Matrix3 targetUserOri = userTargetframeKine.orientation.inverse();
+  Vector3 targetUserPosition = -(targetUserOri * userTargetframeKine.position());
+
+  // lever arm between the target frame's origin and the centroid, expressed in the target frame
+  const Vector3 targetCentroidPosition = targetUserPosition + targetUserOri * userCentroidPosition;
+
+  // the orientation of the centroid frame in the user frame is the identity matrix
+  Matrix3 & targetCentroidOri = targetUserOri;
+
+  // expression of the wrench in the target frame
+  Vector3 forceTargetframe = targetCentroidOri * forceCentroidFrame;
+  Vector3 torqueTargetframe =
+      targetCentroidOri * torqueCentroidFrame + targetCentroidPosition.cross(targetCentroidPosition);
+
+  Vector6 wrenchTargetframe;
+  wrenchTargetframe << forceTargetframe, torqueTargetframe;
+
+  return wrenchTargetframe;
+}
+
 kine::LocalKinematics KineticsObserver::estimateAccelerations()
 {
   Vector3 forceCentroid = additionalForce_;
@@ -596,6 +622,15 @@ void KineticsObserver::convertWrenchFromUserToCentroid(const Vector3 & forceUser
 {
   forceCentroidFrame = forceUserFrame;
   momentCentroidFrame = momentUserFrame - com_().cross(forceUserFrame);
+}
+
+void KineticsObserver::convertWrenchFromCentroidToUser(const Vector3 & forceCentroidFrame,
+                                                       const Vector3 & momentCentroidFrame,
+                                                       Vector3 & forceUserFrame,
+                                                       Vector3 & momentUserFrame)
+{
+  forceUserFrame = forceCentroidFrame;
+  momentUserFrame = momentCentroidFrame + com_().cross(forceCentroidFrame);
 }
 
 void KineticsObserver::setWithUnmodeledWrench(bool b)

@@ -476,6 +476,14 @@ public:
                                        Vector3 & forceCentroidFrame,
                                        Vector3 & momentCentroidFrame);
 
+  /// @brief Converts a given wrench from the centroid to the user frame
+  /// @details Performs the conversion of a wrench {force, torque} from the centroid frame to the user frame.
+  ///
+  void convertWrenchFromCentroidToUser(const Vector3 & forceCentroidFrame,
+                                       const Vector3 & momentCentroidFrame,
+                                       Vector3 & forceUserFrame,
+                                       Vector3 & momentUserFrame);
+
   /// @brief Get the estimated local Kinematics of the centroid frame in the world frame (local, which means expressed
   /// in the centroid frame).
   /// @details the kinematics are the main output of this observer. It includes the linear and angular position and
@@ -539,6 +547,16 @@ public:
   ///
   /// @return Vector6
   Vector6 getUnmodeledWrench() const;
+
+  /// @brief Get the Unmodeled External Wrench (requires setWithUnmodeledWrench() to true before to update()) expressed
+  /// in the desired frame.
+  /// @details The kinematics of the frame in which we want to express the wrench must be given in the user frame.
+  /// M(target) = M(centroid) + targetCentroidKine.position().cross(F(centroid))
+  /// With targetCentroidKine.position() = targetUserKine.position + targetUserKine.orientation *
+  /// userCentroidKine.position()
+  /// @return Vector6
+  Vector6 getUnmodeledWrenchIn(const Kinematics & userTargetframeKine);
+
   /// @}
 
   /// ///////////////////////////////////////////////////////////
