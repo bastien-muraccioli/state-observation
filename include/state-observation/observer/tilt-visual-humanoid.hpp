@@ -10,9 +10,10 @@
  *
  */
 
-#ifndef TILTESTIMATORHUMANOIDHPP
-#define TILTESTIMATORHUMANOIDHPP
+#ifndef TiltVisualHumanoidHPP
+#define TiltVisualHumanoidHPP
 
+#include "state-observation/observer/tilt-estimator-humanoid.hpp"
 #include "state-observation/tools/rigid-body-kinematics.hpp"
 #include <state-observation/api.h>
 #include <state-observation/observer/tilt-estimator.hpp>
@@ -22,26 +23,22 @@ namespace stateObservation
 {
 
 /**
- * \class  TiltEstimatorHumanoid
+ * \class  TiltVisualHumanoid
  * \brief  Version of the Tilt Estimator for humanoid robots.
  *
  */
-class STATE_OBSERVATION_DLLAPI TiltEstimatorHumanoid : public TiltEstimator
+class STATE_OBSERVATION_DLLAPI TiltVisualHumanoid : public TiltEstimatorHumanoid
 {
+  typedef kine::Orientation Orientation;
+
 public:
   /// The constructor
   ///  \li alpha : parameter related to the convergence of the linear velocity
   ///              of the IMU expressed in the control frame
   ///  \li beta  : parameter related to the fast convergence of the tilt
   ///  \li gamma : parameter related to the orthogonality
-  TiltEstimatorHumanoid(double alpha, double beta, double gamma);
+  TiltVisualHumanoid(double alpha, double beta);
 
-protected:
-  // constructor that allows to use custom sizes for the state and measurement vectors. Might be useful for other
-  // estimators inheriting from this one.
-  TiltEstimatorHumanoid(double alpha, double beta, double gamma, int n, int m);
-
-public:
   /// sets the position of the IMU sensor in the control frame
   void setSensorPositionInC(const Vector3 & p)
   {
@@ -116,10 +113,35 @@ public:
 #  endif
 #endif
 
-  // we also want to use the function setMeasurement from the TiltEstimator class, that is hidden by the following
-  using TiltEstimator::setMeasurement;
+  /// set rho1
+  void setRho1(const double rho1)
+  {
+    rho1_ = rho1;
+  }
+  double getRho1() const
+  {
+    return rho1_;
+  }
+
+  /// set rho1
+  void setRho2(const double rho2)
+  {
+    rho2_ = rho2;
+  }
+  double getRho2() const
+  {
+    return rho2_;
+  }
+
   /// sets ths measurement (accelero and gyro stacked in one vector)
-  void setMeasurement(const Vector3 & ya_k, const Vector3 & yg_k, TimeIndex k);
+  void setMeasurement(const Vector3 & ya_k, const Vector3 & yg_k, const Vector4 & yR_k, TimeIndex k);
+
+  /// sets ths measurement (accelero and gyro stacked in one vector)
+  void setMeasurement(const Vector3 & yv_k,
+                      const Vector3 & ya_k,
+                      const Vector3 & yg_k,
+                      const Vector4 & yR_k,
+                      TimeIndex k);
 
 #if defined(__clang__)
 #  pragma clang diagnostic pop
@@ -146,18 +168,21 @@ protected:
   /// Linear velocity of the control frame
   Vector3 v_C_;
 
-  /// Linear velocity of the control frame
-  kine::Orientation R_hat_;
-
   /// indicates that x1hat needs to be reset
   bool resetX1hat_ = false;
+
+  double rho1_ = 0.0;
+  double rho2_ = 0.0;
 
   /// @brief Checks if x1hat needs to be reset and if yes, resets it with the current value of x1.
   /// @details x1hat needs to be reset when the mode of computation of the anchor frame changed, to avoid
   /// discontinuities.
   void checkResetX1hat();
+
+  /// Orientation estimator loop
+  StateVector oneStepEstimation_();
 };
 
 } // namespace stateObservation
 
-#endif // TILTESTIMATORHUMANOIDHPP
+#endif // TiltVisualHumanoidHPP
