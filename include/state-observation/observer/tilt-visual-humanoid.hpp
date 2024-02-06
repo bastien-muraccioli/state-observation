@@ -36,8 +36,15 @@ public:
   ///  \li alpha : parameter related to the convergence of the linear velocity
   ///              of the IMU expressed in the control frame
   ///  \li beta  : parameter related to the fast convergence of the tilt
-  ///  \li gamma : parameter related to the orthogonality
   TiltVisualHumanoid(double alpha, double beta);
+
+  /// @brief initializes the state vector.
+  /// @param x1 The initial local linear velocity of the IMU.
+  /// @param x2_p The initial value of the intermediate estimate of the IMU's tilt.
+  /// @param x2 The initial tilt of the IMU.
+  void initEstimator(Vector3 x1 = Vector3::Zero(),
+                     Vector3 x2_prime = Vector3::UnitZ(),
+                     Vector4 R = Vector4(0, 0, 0, 1));
 
   /// sets the position of the IMU sensor in the control frame
   void setSensorPositionInC(const Vector3 & p)
@@ -133,6 +140,29 @@ public:
     return rho2_;
   }
 
+  /// set mu
+  void setMu(const double mu)
+  {
+    mu_ = mu;
+  }
+  double getMu() const
+  {
+    return mu_;
+  }
+
+  inline stateObservation::Vector3 getSigmaPart1() const
+  {
+    return sigma_part1_;
+  }
+  inline stateObservation::Vector3 getSigmaPart2() const
+  {
+    return sigma_part2_;
+  }
+  inline stateObservation::Vector3 getSigmaPart3() const
+  {
+    return sigma_part3_;
+  }
+
   /// sets ths measurement (accelero and gyro stacked in one vector)
   void setMeasurement(const Vector3 & ya_k, const Vector3 & yg_k, const Vector4 & yR_k, TimeIndex k);
 
@@ -173,6 +203,11 @@ protected:
 
   double rho1_ = 0.0;
   double rho2_ = 0.0;
+  double mu_ = 0.0;
+
+  Vector3 sigma_part1_;
+  Vector3 sigma_part2_;
+  Vector3 sigma_part3_;
 
   /// @brief Checks if x1hat needs to be reset and if yes, resets it with the current value of x1.
   /// @details x1hat needs to be reset when the mode of computation of the anchor frame changed, to avoid
