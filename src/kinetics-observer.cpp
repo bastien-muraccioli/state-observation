@@ -478,8 +478,7 @@ Vector6 KineticsObserver::getUnmodeledWrenchIn(const kine::Kinematics & userTarg
 
   // expression of the wrench in the target frame
   Vector3 forceTargetframe = targetCentroidOri * forceCentroidFrame;
-  Vector3 torqueTargetframe =
-      targetCentroidOri * torqueCentroidFrame + targetCentroidPosition.cross(targetCentroidPosition);
+  Vector3 torqueTargetframe = targetCentroidOri * torqueCentroidFrame + targetCentroidPosition.cross(forceTargetframe);
 
   Vector6 wrenchTargetframe;
   wrenchTargetframe << forceTargetframe, torqueTargetframe;
