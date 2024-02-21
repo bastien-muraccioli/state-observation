@@ -83,7 +83,7 @@ ObserverBase::StateVector TiltVisualHumanoid::oneStepEstimation_()
   // Matrix3 rot_diff = R_hat_.toMatrix3() * yR.toMatrix3().transpose();
   Matrix3 Rhat_t = R_hat_.toMatrix3().transpose();
 
-  sigma_part1_ = rho1_ * Rhat_t * Vector3::UnitZ().cross(x2_hat_prime_);
+  sigma_part1_ = rho1_ * (Rhat_t * Vector3::UnitZ()).cross(x2_hat_prime_);
   sigma_part2_ = rho2_ * rot_diff_vec;
   sigma_part3_ = mu_ * Rhat_t * Vector3::UnitZ() * (Rhat_t * Vector3::UnitZ()).transpose() * rot_diff_vec;
 
