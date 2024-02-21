@@ -100,9 +100,7 @@ public:
     return v_C_;
   }
 
-  /// @brief informs the estimator that x1hat (the estimate of the local linear velocity of the IMU in the world) needs
-  /// to be reset.
-  /// @copydetails checkResetX1hat()
+  /// @brief Resets x1hat (the estimate of the local linear velocity of the IMU in the world)
   void resetImuLocVelHat();
 
 /// prevent c++ overloaded virtual function warning
@@ -148,14 +146,6 @@ protected:
 
   /// Linear velocity of the control frame
   kine::Orientation R_hat_;
-
-  /// indicates that x1hat needs to be reset
-  bool resetX1hat_ = false;
-
-  /// @brief Checks if x1hat needs to be reset and if yes, resets it with the current value of x1.
-  /// @details x1hat needs to be reset when the mode of computation of the anchor frame changed, to avoid
-  /// discontinuities.
-  void checkResetX1hat();
 };
 
 } // namespace stateObservation

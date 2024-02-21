@@ -41,20 +41,6 @@ void TiltVisualHumanoid::setMeasurement(const Vector3 & yv_k,
   ZeroDelayObserver::setMeasurement(y_k, k);
 }
 
-void TiltVisualHumanoid::resetImuLocVelHat()
-{
-  resetX1hat_ = true;
-}
-
-void TiltVisualHumanoid::checkResetX1hat()
-{
-  if(resetX1hat_)
-  {
-    x_().segment<3>(0) = x1_;
-    resetX1hat_ = false;
-  }
-}
-
 ObserverBase::StateVector TiltVisualHumanoid::oneStepEstimation_()
 {
   TimeIndex k = this->x_.getTime();

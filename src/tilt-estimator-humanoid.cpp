@@ -23,16 +23,7 @@ void TiltEstimatorHumanoid::setMeasurement(const Vector3 & ya_k, const Vector3 &
 
 void TiltEstimatorHumanoid::resetImuLocVelHat()
 {
-  resetX1hat_ = true;
-}
-
-void TiltEstimatorHumanoid::checkResetX1hat()
-{
-  if(resetX1hat_)
-  {
-    x_().segment<3>(0) = x1_;
-    resetX1hat_ = false;
-  }
+  x_().segment<3>(0) = x1_;
 }
 
 } // namespace stateObservation
