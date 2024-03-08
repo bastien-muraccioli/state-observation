@@ -50,7 +50,7 @@ void VanytEstimator::setMeasurement(const Vector3 & yv_k, const Vector3 & ya_k, 
 void VanytEstimator::addOrientationMeasurement(const Matrix3 & oriMeasurement, double gain)
 {
   startNewIteration();
-  Matrix3 rot_diff = oriMeasurement.transpose() * R_hat_.toMatrix3();
+  Matrix3 rot_diff = oriMeasurement * R_hat_.toMatrix3().transpose();
   Vector3 rot_diff_vec = kine::skewSymmetricToRotationVector(rot_diff - rot_diff.transpose());
 
   correction_ += gain * R_hat_.toMatrix3().transpose() * Vector3::UnitZ()
