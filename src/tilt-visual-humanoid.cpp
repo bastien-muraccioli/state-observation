@@ -6,7 +6,10 @@
 namespace stateObservation
 {
 
-TiltVisualHumanoid::TiltVisualHumanoid(double alpha, double beta) : TiltEstimatorHumanoid(alpha, beta, 0.0, 10, 13) {}
+TiltVisualHumanoid::TiltVisualHumanoid(double alpha, double beta, double dt)
+: TiltEstimatorHumanoid(alpha, beta, 0.0, 10, 13, dt)
+{
+}
 
 void TiltVisualHumanoid::initEstimator(Vector3 x1, Vector3 x2_prime, Vector4 R)
 {

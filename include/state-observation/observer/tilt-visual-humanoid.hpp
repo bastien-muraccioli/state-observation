@@ -36,7 +36,7 @@ public:
   ///  \li alpha : parameter related to the convergence of the linear velocity
   ///              of the IMU expressed in the control frame
   ///  \li beta  : parameter related to the fast convergence of the tilt
-  TiltVisualHumanoid(double alpha, double beta);
+  TiltVisualHumanoid(double alpha, double beta, double dt);
 
   /// @brief initializes the state vector.
   /// @param x1 The initial local linear velocity of the IMU.

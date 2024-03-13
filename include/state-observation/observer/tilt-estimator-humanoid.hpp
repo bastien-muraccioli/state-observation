@@ -34,12 +34,12 @@ public:
   ///              of the IMU expressed in the control frame
   ///  \li beta  : parameter related to the fast convergence of the tilt
   ///  \li gamma : parameter related to the orthogonality
-  TiltEstimatorHumanoid(double alpha, double beta, double gamma);
+  TiltEstimatorHumanoid(double alpha, double beta, double gamma, double dt);
 
 protected:
   // constructor that allows to use custom sizes for the state and measurement vectors. Might be useful for other
   // estimators inheriting from this one.
-  TiltEstimatorHumanoid(double alpha, double beta, double gamma, int n, int m);
+  TiltEstimatorHumanoid(double alpha, double beta, double gamma, int n, int m, double dt);
 
 public:
   /// sets the position of the IMU sensor in the control frame
