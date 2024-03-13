@@ -4,7 +4,10 @@
 namespace stateObservation
 {
 
-VanytEstimator::VanytEstimator(double alpha, double beta) : TiltEstimatorHumanoid(alpha, beta, 0.0, 10, 9) {}
+VanytEstimator::VanytEstimator(double alpha, double beta, double dt)
+: TiltEstimatorHumanoid(alpha, beta, 0.0, 10, 9, dt)
+{
+}
 
 void VanytEstimator::initEstimator(Vector3 x1, Vector3 x2_prime, Vector4 R)
 {
