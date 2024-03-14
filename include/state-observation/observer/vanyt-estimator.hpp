@@ -33,15 +33,16 @@ public:
   ///  \li alpha : parameter related to the convergence of the linear velocity
   ///              of the IMU expressed in the control frame
   ///  \li beta  : parameter related to the fast convergence of the tilt
-  VanytEstimator(double alpha, double beta, double dt);
+  VanytEstimator(double alpha, double beta, double tau, double dt);
 
   /// @brief initializes the state vector.
   /// @param x1 The initial local linear velocity of the IMU.
   /// @param x2_p The initial value of the intermediate estimate of the IMU's tilt.
   /// @param x2 The initial tilt of the IMU.
-  void initEstimator(Vector3 x1 = Vector3::Zero(),
-                     Vector3 x2_prime = Vector3::UnitZ(),
-                     Vector4 R = Vector4(0, 0, 0, 1));
+  void initEstimator(const Vector3 & pos = Vector3::Zero(),
+                     const Vector3 & x1 = Vector3::Zero(),
+                     const Vector3 & x2_prime = Vector3::UnitZ(),
+                     const Vector4 & R = Vector4(0, 0, 0, 1));
 
   /// sets the position of the IMU sensor in the control frame
   void setSensorPositionInC(const Vector3 & p)
@@ -122,10 +123,31 @@ public:
     return rho1_;
   }
 
-  // returns the correction term applied on the estimated orientation
-  inline stateObservation::Vector3 getCorrection() const
+  /// set tau
+  void setTau(const double tau)
   {
-    return correction_;
+    tau_ = tau;
+    expMinDtOverTau_ = exp(-dt_ / tau_);
+  }
+  double getTau() const
+  {
+    return tau_;
+  }
+
+  // returns the correction term applied on the estimated orientation
+  inline const stateObservation::Vector3 & getOriCorrection() const
+  {
+    return oriCorrection_;
+  }
+  // returns the position pseudo-mmesurement coming from the contacts
+  inline const stateObservation::Vector3 & getPosContacts() const
+  {
+    return pos_contacts_;
+  }
+  // returns the position pseudo-mmesurement coming from the integration of x1
+  inline const stateObservation::Vector3 & getPosX1() const
+  {
+    return pos_x1_;
   }
 
   /// sets ths measurement (accelero and gyro stacked in one vector)
@@ -136,6 +158,9 @@ public:
 
   // add an orientation measurement to the correction
   void addOrientationMeasurement(const Matrix3 & meas, double gain);
+
+  // add a position measurement to the correction
+  void addPositionMeasurement(const Vector3 & worldAnchorPos, const Vector3 & ImuAnchorPos);
 
 #if defined(__clang__)
 #  pragma clang diagnostic pop
@@ -162,11 +187,17 @@ protected:
   /// Linear velocity of the control frame
   Vector3 v_C_;
 
-  double rho1_ = 0.0;
-  double rho2_ = 0.0;
-  double mu_ = 0.0;
+  CheckedVector3 worldAnchorPos_;
+  CheckedVector3 imuAnchorPos_;
+  Vector3 pos_contacts_;
+  Vector3 pos_x1_;
 
-  Vector3 correction_ = Vector3::Zero();
+  double rho1_ = 0.0;
+
+  double tau_;
+  double expMinDtOverTau_;
+
+  Vector3 oriCorrection_ = Vector3::Zero();
 
   /// Orientation estimator loop
   StateVector oneStepEstimation_();
