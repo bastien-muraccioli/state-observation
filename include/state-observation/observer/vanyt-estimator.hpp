@@ -134,6 +134,13 @@ public:
     return tau_;
   }
 
+  /// set the sampling time of the measurements
+  virtual void setSamplingTime(const double dt) override
+  {
+    TiltEstimator::setSamplingTime(dt);
+    expMinDtOverTau_ = exp(-dt_ / tau_);
+  }
+
   // returns the correction term applied on the estimated orientation
   inline const stateObservation::Vector3 & getOriCorrection() const
   {
@@ -200,11 +207,12 @@ protected:
   Vector3 oriCorrection_ = Vector3::Zero();
 
   /// Orientation estimator loop
-  StateVector oneStepEstimation_();
+  StateVector oneStepEstimation_() override;
 
   void startNewIteration();
 
   Index k_data_ = 0.0;
+  Index k_contacts_ = -1.0;
 };
 
 } // namespace stateObservation

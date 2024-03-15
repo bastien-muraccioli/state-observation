@@ -87,7 +87,7 @@ public:
   }
 
   /// set the sampling time of the measurements
-  void setSamplingTime(const double dt)
+  virtual void setSamplingTime(const double dt)
   {
     dt_ = dt;
   }

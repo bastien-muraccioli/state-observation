@@ -66,7 +66,7 @@ void VanytEstimator::addOrientationMeasurement(const Matrix3 & oriMeasurement, d
   Vector3 rot_diff_vec = kine::skewSymmetricToRotationVector(rot_diff - rot_diff.transpose());
 
   oriCorrection_ += gain * R_hat_.toMatrix3().transpose() * Vector3::UnitZ()
-                 * (R_hat_.toMatrix3().transpose() * Vector3::UnitZ()).transpose() * rot_diff_vec;
+                    * (R_hat_.toMatrix3().transpose() * Vector3::UnitZ()).transpose() * rot_diff_vec;
 }
 
 void VanytEstimator::addPositionMeasurement(const Vector3 & worldAnchorPos, const Vector3 & ImuAnchorPos)
@@ -97,6 +97,7 @@ ObserverBase::StateVector VanytEstimator::oneStepEstimation_()
   Vector dx_hat(getStateSize());
   dx_hat.setZero();
   dx_hat.segment<3>(3) = x1_hat_.cross(yg) - cst::gravityConstant * x2_hat_prime_ + ya + alpha_ * (yv - x1_hat_); // x1
+  dx_hat.segment<3>(6) = x2_hat_prime_.cross(yg) - beta_ * (yv - x1_hat_); // x2_prime
   x_hat += dx_hat * dt_;
   x_hat.segment<3>(6) /= x_hat.segment<3>(6).norm();
 
@@ -112,7 +113,10 @@ ObserverBase::StateVector VanytEstimator::oneStepEstimation_()
   {
     Vector3 worldPosFromContacts = worldAnchorPos_() - R_hat_.toMatrix3() * imuAnchorPos_();
     pos_contacts_ = expMinDtOverTau_ * pos_contacts_ + (1 - expMinDtOverTau_) * worldPosFromContacts;
+
     pos_x1_ = expMinDtOverTau_ * pos_x1_ + (tau_ - expMinDtOverTau_ * tau_) * R_hat_.toMatrix3() * x_hat.segment<3>(3);
+
+    x_hat.segment<3>(0) = pos_x1_ + pos_contacts_; // pos
   }
 
   setState(x_hat, k + 1);
