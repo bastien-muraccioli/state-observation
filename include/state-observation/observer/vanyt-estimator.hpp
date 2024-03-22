@@ -209,7 +209,7 @@ protected:
   /// Orientation estimator loop
   StateVector oneStepEstimation_() override;
 
-  void startNewIteration();
+  void resetForNextIteration();
 
   Index k_data_ = 0.0;
   Index k_contacts_ = -1.0;

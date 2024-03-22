@@ -25,23 +25,16 @@ void VanytEstimator::initEstimator(const Vector3 & pos, const Vector3 & x1, cons
   pos_x1_.setZero();
 }
 
-void VanytEstimator::startNewIteration()
+void VanytEstimator::resetForNextIteration()
 {
-  // Checks if new data was passed to the estimator since the last estimation
-  if(k_data_ == getCurrentTime())
-  {
-    oriCorrection_.setZero();
+  imuAnchorPos_.reset();
+  worldAnchorPos_.reset();
 
-    imuAnchorPos_.reset();
-    worldAnchorPos_.reset();
-
-    ++k_data_;
-  }
+  oriCorrection_.setZero();
 }
 
 void VanytEstimator::setMeasurement(const Vector3 & ya_k, const Vector3 & yg_k, TimeIndex k)
 {
-  startNewIteration();
   x1_ = R_S_C_.transpose() * (v_C_ + v_S_C_) + (yg_k - R_S_C_.transpose() * w_S_C_).cross(R_S_C_.transpose() * p_S_C_);
   ObserverBase::MeasureVector y_k(getMeasureSize());
 
@@ -52,7 +45,6 @@ void VanytEstimator::setMeasurement(const Vector3 & ya_k, const Vector3 & yg_k, 
 
 void VanytEstimator::setMeasurement(const Vector3 & yv_k, const Vector3 & ya_k, const Vector3 & yg_k, TimeIndex k)
 {
-  startNewIteration();
   ObserverBase::MeasureVector y_k(getMeasureSize());
   y_k << yv_k, ya_k, yg_k;
 
@@ -61,18 +53,15 @@ void VanytEstimator::setMeasurement(const Vector3 & yv_k, const Vector3 & ya_k, 
 
 void VanytEstimator::addOrientationMeasurement(const Matrix3 & oriMeasurement, double gain)
 {
-  startNewIteration();
-  Matrix3 rot_diff = oriMeasurement * R_hat_.toMatrix3().transpose();
+  Matrix3 rot_diff = R_hat_.toMatrix3() * oriMeasurement.transpose();
   Vector3 rot_diff_vec = kine::skewSymmetricToRotationVector(rot_diff - rot_diff.transpose());
 
-  oriCorrection_ += gain * R_hat_.toMatrix3().transpose() * Vector3::UnitZ()
-                    * (R_hat_.toMatrix3().transpose() * Vector3::UnitZ()).transpose() * rot_diff_vec;
+  oriCorrection_ +=
+      gain * R_hat_.toMatrix3().transpose() * Vector3::UnitZ() * (Vector3::UnitZ()).transpose() * rot_diff_vec;
 }
 
 void VanytEstimator::addPositionMeasurement(const Vector3 & worldAnchorPos, const Vector3 & ImuAnchorPos)
 {
-  startNewIteration();
-
   k_contacts_ = getCurrentTime();
 
   worldAnchorPos_ = worldAnchorPos;
@@ -109,7 +98,7 @@ ObserverBase::StateVector VanytEstimator::oneStepEstimation_()
 
   // once the orientation of the IMU in the world is estimated, we can use it to estimate the position of the IMU in the
   // world
-  if(worldAnchorPos_.isSet())
+  if(k_contacts_ == k)
   {
     Vector3 worldPosFromContacts = worldAnchorPos_() - R_hat_.toMatrix3() * imuAnchorPos_();
     pos_contacts_ = expMinDtOverTau_ * pos_contacts_ + (1 - expMinDtOverTau_) * worldPosFromContacts;
@@ -120,6 +109,8 @@ ObserverBase::StateVector VanytEstimator::oneStepEstimation_()
   }
 
   setState(x_hat, k + 1);
+
+  resetForNextIteration();
 
   return x_hat;
 }
