@@ -82,7 +82,6 @@ ObserverBase::StateVector TiltVisualHumanoid::oneStepEstimation_()
 
   Vector3 dt_omega = kine::skewSymmetricToRotationVector(dR_hat * R_hat_.toMatrix3().transpose()) * dt_;
   x_hat += dx_hat * dt_;
-  x_hat.segment<3>(6) /= x_hat.segment<3>(6).norm();
 
   R_hat_.integrate(dt_omega);
 

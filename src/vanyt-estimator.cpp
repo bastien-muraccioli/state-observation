@@ -87,7 +87,6 @@ ObserverBase::StateVector VanytEstimator::oneStepEstimation_()
   dx_hat.segment<3>(3) = x1_hat_.cross(yg) - cst::gravityConstant * x2_hat_prime_ + ya + alpha_ * (yv - x1_hat_); // x1
   dx_hat.segment<3>(6) = x2_hat_prime_.cross(yg) - beta_ * (yv - x1_hat_); // x2_prime
   x_hat += dx_hat * dt_;
-  x_hat.segment<3>(6) /= x_hat.segment<3>(6).norm();
 
   sigma_ += rho1_ * (R_hat_.toMatrix3().transpose() * Vector3::UnitZ()).cross(x2_hat_prime_);
   Vector3 dt_omega = (yg - sigma_) * dt_; // using R_dot = RS(w_l) = RS(yg-sigma)
