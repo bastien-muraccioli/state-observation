@@ -30,7 +30,7 @@ void VanytEstimator::resetForNextIteration()
   imuAnchorPos_.reset();
   worldAnchorPos_.reset();
 
-  oriCorrection_.setZero();
+  sigma_.setZero();
 }
 
 void VanytEstimator::setMeasurement(const Vector3 & ya_k, const Vector3 & yg_k, TimeIndex k)
@@ -56,8 +56,7 @@ void VanytEstimator::addOrientationMeasurement(const Matrix3 & oriMeasurement, d
   Matrix3 rot_diff = R_hat_.toMatrix3() * oriMeasurement.transpose();
   Vector3 rot_diff_vec = kine::skewSymmetricToRotationVector(rot_diff - rot_diff.transpose());
 
-  oriCorrection_ +=
-      gain * R_hat_.toMatrix3().transpose() * Vector3::UnitZ() * (Vector3::UnitZ()).transpose() * rot_diff_vec;
+  sigma_ += gain * R_hat_.toMatrix3().transpose() * Vector3::UnitZ() * (Vector3::UnitZ()).transpose() * rot_diff_vec;
 }
 
 void VanytEstimator::addPositionMeasurement(const Vector3 & worldAnchorPos, const Vector3 & ImuAnchorPos)
@@ -90,10 +89,10 @@ ObserverBase::StateVector VanytEstimator::oneStepEstimation_()
   x_hat += dx_hat * dt_;
   x_hat.segment<3>(6) /= x_hat.segment<3>(6).norm();
 
-  oriCorrection_ += rho1_ * (R_hat_.toMatrix3().transpose() * Vector3::UnitZ()).cross(x2_hat_prime_);
-  Matrix3 dR_hat = R_hat_.toMatrix3() * kine::skewSymmetric(yg - oriCorrection_);
-  Vector3 dt_omega = kine::skewSymmetricToRotationVector(dR_hat * R_hat_.toMatrix3().transpose()) * dt_;
-  R_hat_.integrate(dt_omega);
+  sigma_ += rho1_ * (R_hat_.toMatrix3().transpose() * Vector3::UnitZ()).cross(x2_hat_prime_);
+  Vector3 dt_omega = (yg - sigma_) * dt_; // using R_dot = RS(w_l) = RS(yg-sigma)
+
+  R_hat_.integrateRightSide(dt_omega);
   x_hat.tail(4) = R_hat_.toVector4();
 
   // once the orientation of the IMU in the world is estimated, we can use it to estimate the position of the IMU in the

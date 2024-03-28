@@ -144,7 +144,7 @@ public:
   // returns the correction term applied on the estimated orientation
   inline const stateObservation::Vector3 & getOriCorrection() const
   {
-    return oriCorrection_;
+    return sigma_;
   }
   // returns the position pseudo-mmesurement coming from the contacts
   inline const stateObservation::Vector3 & getPosContacts() const
@@ -204,7 +204,7 @@ protected:
   double tau_;
   double expMinDtOverTau_;
 
-  Vector3 oriCorrection_ = Vector3::Zero();
+  Vector3 sigma_ = Vector3::Zero();
 
   /// Orientation estimator loop
   StateVector oneStepEstimation_() override;
