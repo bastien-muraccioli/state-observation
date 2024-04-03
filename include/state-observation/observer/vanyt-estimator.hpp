@@ -194,6 +194,9 @@ protected:
   /// Linear velocity of the control frame
   Vector3 v_C_;
 
+  /// Estimated pose of the IMU
+  kine::Kinematics T_hat_;
+
   CheckedVector3 worldAnchorPos_;
   CheckedVector3 imuAnchorPos_;
   Vector3 pos_contacts_;

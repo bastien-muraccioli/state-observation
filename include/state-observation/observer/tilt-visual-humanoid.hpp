@@ -201,6 +201,9 @@ protected:
   Vector3 sigma_part2_;
   Vector3 sigma_part3_;
 
+  /// Estimated orientation of the IMU
+  kine::Orientation R_hat_;
+
   /// Orientation estimator loop
   StateVector oneStepEstimation_();
 };

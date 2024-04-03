@@ -1408,6 +1408,21 @@ inline Kinematics & Kinematics::operator=(const LocalKinematics & locK)
   return *this;
 }
 
+inline const Kinematics & Kinematics::SE3_integration(const Vector3 & vl_dt, const Vector3 & omega_l_dt)
+{
+  /** Position update */
+  Vector3 Vv = vl_dt
+               + (1 / omega_l_dt.norm())
+                     * omega_l_dt.cross(vl_dt + omega_l_dt.cross(vl_dt)
+                                        - kine::rotationVectorToRotationMatrix(omega_l_dt) * vl_dt);
+  position() += orientation * Vv;
+
+  /** Orientation update */
+  orientation.integrateRightSide(omega_l_dt);
+
+  return *this;
+}
+
 inline const Kinematics & Kinematics::integrate(double dt)
 {
   enum AreSet

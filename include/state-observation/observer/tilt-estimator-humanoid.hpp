@@ -143,9 +143,6 @@ protected:
 
   /// Linear velocity of the control frame
   Vector3 v_C_;
-
-  /// Linear velocity of the control frame
-  kine::Orientation R_hat_;
 };
 
 } // namespace stateObservation

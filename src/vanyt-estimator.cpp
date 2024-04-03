@@ -53,10 +53,11 @@ void VanytEstimator::setMeasurement(const Vector3 & yv_k, const Vector3 & ya_k, 
 
 void VanytEstimator::addOrientationMeasurement(const Matrix3 & oriMeasurement, double gain)
 {
-  Matrix3 rot_diff = R_hat_.toMatrix3() * oriMeasurement.transpose();
+  Matrix3 rot_diff = T_hat_.orientation.toMatrix3() * oriMeasurement.transpose();
   Vector3 rot_diff_vec = kine::skewSymmetricToRotationVector(rot_diff - rot_diff.transpose());
 
-  sigma_ += gain * R_hat_.toMatrix3().transpose() * Vector3::UnitZ() * (Vector3::UnitZ()).transpose() * rot_diff_vec;
+  sigma_ += gain * T_hat_.orientation.toMatrix3().transpose() * Vector3::UnitZ() * (Vector3::UnitZ()).transpose()
+            * rot_diff_vec;
 }
 
 void VanytEstimator::addPositionMeasurement(const Vector3 & worldAnchorPos, const Vector3 & ImuAnchorPos)
@@ -80,7 +81,8 @@ ObserverBase::StateVector VanytEstimator::oneStepEstimation_()
   ObserverBase::StateVector x_hat = getCurrentEstimatedState();
   x1_hat_ = x_hat.segment<3>(3);
   x2_hat_prime_ = x_hat.segment<3>(6);
-  R_hat_.fromVector4(x_hat.tail(4));
+
+  T_hat_.orientation.fromVector4(x_hat.tail(4));
 
   Vector dx_hat(getStateSize());
   dx_hat.setZero();
@@ -88,12 +90,14 @@ ObserverBase::StateVector VanytEstimator::oneStepEstimation_()
   dx_hat.segment<3>(6) = x2_hat_prime_.cross(yg) - beta_ * (yv - x1_hat_); // x2_prime
   x_hat += dx_hat * dt_;
 
-  sigma_ += rho1_ * (R_hat_.toMatrix3().transpose() * Vector3::UnitZ()).cross(x2_hat_prime_);
+  sigma_ += rho1_ * (T_hat_.orientation.toMatrix3().transpose() * Vector3::UnitZ()).cross(x2_hat_prime_);
   Vector3 dt_omega = (yg - sigma_) * dt_; // using R_dot = RS(w_l) = RS(yg-sigma)
 
-  R_hat_.integrateRightSide(dt_omega);
-  x_hat.tail(4) = R_hat_.toVector4();
+  T_hat_.SE3_integration(x_hat.segment<3>(3) * dt_, dt_omega);
+  x_hat.tail(4) = T_hat_.orientation.toVector4();
+  x_hat.segment<3>(0) = T_hat_.position(); // pos
 
+  /*
   // once the orientation of the IMU in the world is estimated, we can use it to estimate the position of the IMU in the
   // world
   if(k_contacts_ == k)
@@ -105,6 +109,7 @@ ObserverBase::StateVector VanytEstimator::oneStepEstimation_()
 
     x_hat.segment<3>(0) = pos_x1_ + pos_contacts_; // pos
   }
+  */
 
   setState(x_hat, k + 1);
 
