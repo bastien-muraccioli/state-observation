@@ -1411,11 +1411,20 @@ inline Kinematics & Kinematics::operator=(const LocalKinematics & locK)
 inline const Kinematics & Kinematics::SE3_integration(const Vector3 & vl_dt, const Vector3 & omega_l_dt)
 {
   /** Position update */
-  Vector3 Vv = vl_dt
-               + (1 / omega_l_dt.norm())
-                     * omega_l_dt.cross(vl_dt + omega_l_dt.cross(vl_dt)
-                                        - kine::rotationVectorToRotationMatrix(omega_l_dt) * vl_dt);
-  position() += orientation * Vv;
+  double omega_sqrNorm = omega_l_dt.squaredNorm();
+  Vector3 Vv;
+  if(omega_sqrNorm > cst::epsilonAngle)
+  {
+    Vector3 Vv = vl_dt
+                 + (1 / omega_l_dt.squaredNorm())
+                       * omega_l_dt.cross(vl_dt + omega_l_dt.cross(vl_dt)
+                                          - kine::rotationVectorToRotationMatrix(omega_l_dt) * vl_dt);
+    position() += orientation * Vv;
+  }
+  else
+  {
+    position() += orientation * vl_dt;
+  }
 
   /** Orientation update */
   orientation.integrateRightSide(omega_l_dt);
