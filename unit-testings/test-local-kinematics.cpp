@@ -1075,7 +1075,7 @@ int testOrientation(int errcode)
   return 0;
 }
 
-int testKinematics(int errcode)
+int testLocalKinematics(int errcode)
 {
 
   std::cout << "LocalKinematics test started" << std::endl;
@@ -1451,6 +1451,71 @@ int testKinematics(int errcode)
   return 0;
 }
 
+int testSE3_Integration(int errcode)
+{
+  double threshold = 1e-4;
+  double err = 0;
+
+  double dt = 0.001;
+  int steps = 100;
+
+  for(int i = 0; i < 10; i++)
+  { // two different variables to also test when vl and omega_l are not zero at the same time.
+    for(int j = 0; j < 10; j++)
+    {
+      LocalKinematics k;
+      Vector3 pos = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>();
+      kine::Orientation ori = kine::Orientation::randomRotation();
+      Vector3 vl = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>();
+      Vector3 omega_l = tools::ProbabilityLawSimulation::getGaussianMatrix<Vector3>();
+
+      pos *= i;
+      vl *= i;
+      omega_l *= j;
+
+      k.position = pos;
+      k.orientation = ori;
+
+      LocalKinematics se3_IntegartionResult(k);
+      LocalKinematics euler_IntegartionResult(k);
+      euler_IntegartionResult.linVel = vl;
+      euler_IntegartionResult.angVel = omega_l;
+
+      Kinematics test(se3_IntegartionResult);
+
+      se3_IntegartionResult.SE3_integration(vl * dt, omega_l * dt);
+      test.SE3_integration(vl * dt, omega_l * dt);
+      LocalKinematics test2(test);
+
+      for(int l = 0; l < steps; l++)
+      {
+        euler_IntegartionResult.integrate(dt / steps);
+        euler_IntegartionResult.linVel = vl;
+        euler_IntegartionResult.angVel = omega_l;
+      }
+
+      LocalKinematics diff = se3_IntegartionResult * euler_IntegartionResult.getInverse();
+
+      if(diff.position.isSet())
+      {
+        err += diff.position().squaredNorm();
+      }
+      if(diff.orientation.isSet())
+      {
+        err += diff.orientation.toRotationVector().squaredNorm();
+      }
+    }
+  }
+
+  std::cout << "Error between Euler integration and SE3 integration: " << err << std::endl;
+
+  if(err > threshold)
+  {
+    return errcode;
+  }
+  return 0;
+}
+
 int main()
 {
   int returnVal;
@@ -1506,7 +1571,7 @@ int main()
     std::cout << "Orientation test succeeded" << std::endl;
   }
 
-  if((returnVal = testKinematics(++errorcode))) /// it is not an equality check
+  if((returnVal = testLocalKinematics(++errorcode))) /// it is not an equality check
   {
     std::cout << "LocalKinematics test failed, code : 2" << std::endl;
     return returnVal;
@@ -1514,6 +1579,16 @@ int main()
   else
   {
     std::cout << "LocalKinematics test succeeded" << std::endl;
+  }
+
+  if((returnVal = testSE3_Integration(++errorcode))) /// it is not an equality check
+  {
+    std::cout << "SE3 integration test failed, code :" << std::endl;
+    return returnVal;
+  }
+  else
+  {
+    std::cout << "SE3 integration test succeeded" << std::endl;
   }
 
   std::cout << "test succeeded" << std::endl;

@@ -734,6 +734,14 @@ struct LocalKinematics : public internal::KinematicsInternal<LocalKinematics>
   /// @return const LocalKinematics &
   inline const LocalKinematics & integrate(double dt);
 
+  /// @brief integrates the current kinematics over the timestep dt using the SE3 integration.
+  /// @details can be used to predict the future kinematics from the current ones.
+  /// @param dt the timestep used for the integration
+  /// @param vl_dt local linear velocity times dt
+  /// @param omega_l_dt local angular velocity times dt
+  /// @return const Kinematics &
+  inline const LocalKinematics & SE3_integration(const Vector3 & vl_dt, const Vector3 & omega_l_dt);
+
   /// @brief updates the current local kinematics (k) with the new ones (k+1).
   /// @details flags allow to chose what variables must be contained in the new local kinematics. If a variable is not
   /// given in the updated LocalKinematics object, it computed using either integration or finite differences depending

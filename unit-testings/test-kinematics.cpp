@@ -1172,8 +1172,6 @@ int testSE3_Integration(int errcode)
       {
         err += diff.orientation.toRotationVector().squaredNorm();
       }
-
-      std::cout << std::endl << "err: " << std::endl << err << std::endl;
     }
   }
 
