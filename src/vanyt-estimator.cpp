@@ -98,14 +98,16 @@ ObserverBase::StateVector VanytEstimator::oneStepEstimation_()
   x_hat.segment<3>(0) = T_hat_.position(); // pos
 
   /*
-  // once the orientation of the IMU in the world is estimated, we can use it to estimate the position of the IMU in the
+  // once the orientation of the IMU in the world is estimated, we can use it to estimate the position of the IMU in
+  the
   // world
   if(k_contacts_ == k)
   {
     Vector3 worldPosFromContacts = worldAnchorPos_() - R_hat_.toMatrix3() * imuAnchorPos_();
     pos_contacts_ = expMinDtOverTau_ * pos_contacts_ + (1 - expMinDtOverTau_) * worldPosFromContacts;
 
-    pos_x1_ = expMinDtOverTau_ * pos_x1_ + (tau_ - expMinDtOverTau_ * tau_) * R_hat_.toMatrix3() * x_hat.segment<3>(3);
+    pos_x1_ = expMinDtOverTau_ * pos_x1_ + (tau_ - expMinDtOverTau_ * tau_) * R_hat_.toMatrix3() *
+  x_hat.segment<3>(3);
 
     x_hat.segment<3>(0) = pos_x1_ + pos_contacts_; // pos
   }
