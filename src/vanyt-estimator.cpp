@@ -81,7 +81,6 @@ ObserverBase::StateVector VanytEstimator::oneStepEstimation_()
   ObserverBase::StateVector x_hat = getCurrentEstimatedState();
   x1_hat_ = x_hat.segment<3>(3);
   x2_hat_prime_ = x_hat.segment<3>(6);
-
   T_hat_.orientation.fromVector4(x_hat.tail(4));
 
   Vector dx_hat(getStateSize());
@@ -93,25 +92,21 @@ ObserverBase::StateVector VanytEstimator::oneStepEstimation_()
   sigma_ += rho1_ * (T_hat_.orientation.toMatrix3().transpose() * Vector3::UnitZ()).cross(x2_hat_prime_);
   Vector3 dt_omega = (yg - sigma_) * dt_; // using R_dot = RS(w_l) = RS(yg-sigma)
 
-  T_hat_.SE3_integration(x_hat.segment<3>(3) * dt_, dt_omega);
+  T_hat_.orientation.integrateRightSide(dt_omega);
   x_hat.tail(4) = T_hat_.orientation.toVector4();
-  x_hat.segment<3>(0) = T_hat_.position(); // pos
 
-  /*
-  // once the orientation of the IMU in the world is estimated, we can use it to estimate the position of the IMU in
-  the
+  // once the orientation of the IMU in the world is estimated, we can use it to estimate the position of the IMU in the
   // world
   if(k_contacts_ == k)
   {
-    Vector3 worldPosFromContacts = worldAnchorPos_() - R_hat_.toMatrix3() * imuAnchorPos_();
+    Vector3 worldPosFromContacts = worldAnchorPos_() - T_hat_.orientation.toMatrix3() * imuAnchorPos_();
     pos_contacts_ = expMinDtOverTau_ * pos_contacts_ + (1 - expMinDtOverTau_) * worldPosFromContacts;
 
-    pos_x1_ = expMinDtOverTau_ * pos_x1_ + (tau_ - expMinDtOverTau_ * tau_) * R_hat_.toMatrix3() *
-  x_hat.segment<3>(3);
+    pos_x1_ = expMinDtOverTau_ * pos_x1_
+              + (tau_ - expMinDtOverTau_ * tau_) * T_hat_.orientation.toMatrix3() * x_hat.segment<3>(3);
 
     x_hat.segment<3>(0) = pos_x1_ + pos_contacts_; // pos
   }
-  */
 
   setState(x_hat, k + 1);
 
