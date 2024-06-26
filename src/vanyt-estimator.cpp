@@ -5,7 +5,7 @@ namespace stateObservation
 {
 
 VanytEstimator::VanytEstimator(double alpha, double beta, double tau, double dt)
-: TiltEstimatorHumanoid(alpha, beta, 0.0, 13, 9, dt)
+: ZeroDelayObserver(13, 9), alpha_(alpha), beta_(beta), dt_(dt)
 {
   setTau(tau);
 }
@@ -113,6 +113,11 @@ ObserverBase::StateVector VanytEstimator::oneStepEstimation_()
   resetForNextIteration();
 
   return x_hat;
+}
+
+void VanytEstimator::resetImuLocVelHat()
+{
+  x_().segment<3>(0) = x1_;
 }
 
 } // namespace stateObservation

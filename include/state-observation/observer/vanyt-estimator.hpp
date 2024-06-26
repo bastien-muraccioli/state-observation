@@ -44,26 +44,12 @@ public:
                      const Vector3 & x2_prime = Vector3::UnitZ(),
                      const Vector4 & R = Vector4(0, 0, 0, 1));
 
-  /// sets the position of the IMU sensor in the control frame
-  void setSensorPositionInC(const Vector3 & p)
-  {
-    p_S_C_ = p;
-  }
+  /// @brief Resets x1hat (the estimate of the local linear velocity of the IMU in the world)
+  /// @details Avoid discontinuities when the computation mode of the anchor point changes
+  void resetImuLocVelHat();
 
-  Vector3 getSensorPositionInC()
-  {
-    return p_S_C_;
-  }
-
-  /// sets the oriantation of the IMU sensor in the control frame
-  void setSensorOrientationInC(const Matrix3 & R)
-  {
-    R_S_C_ = R;
-  }
-  Matrix3 getSensorOrientationInC()
-  {
-    return R_S_C_;
-  }
+  /// sets ths measurement (accelero and gyro stacked in one vector)
+  void setMeasurement(const Vector3 & yv_k, const Vector3 & ya_k, const Vector3 & yg_k, TimeIndex k);
 
   Vector3 getVirtualLocalVelocityMeasurement()
   {
@@ -179,20 +165,8 @@ public:
 
 public:
 protected:
-  /// Position of the IMU in the control frame
-  Vector3 p_S_C_;
-
-  /// Orientation of the IMU in the control frame
-  Matrix3 R_S_C_;
-
-  /// Linear velocity of the IMU in the control frame
-  Vector3 v_S_C_;
-
-  /// Angular velocity of the IMU in the control frame
-  Vector3 w_S_C_;
-
-  /// Linear velocity of the control frame
-  Vector3 v_C_;
+  /// The parameters of the estimator
+  double alpha_, beta_;
 
   /// Estimated pose of the IMU
   kine::Kinematics T_hat_;
@@ -214,8 +188,13 @@ protected:
 
   void resetForNextIteration();
 
-  Index k_data_ = 0.0;
-  Index k_contacts_ = -1.0;
+  /// Sampling time
+  double dt_;
+
+  /// variables used for the computation
+  Vector3 x1_;
+  Vector3 x1_hat_;
+  Vector3 x2_hat_prime_;
 };
 
 } // namespace stateObservation
