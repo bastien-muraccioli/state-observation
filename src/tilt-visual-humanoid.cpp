@@ -22,9 +22,14 @@ void TiltVisualHumanoid::initEstimator(Vector3 x1, Vector3 x2_prime, Vector4 R)
   setState(initStateVector, 0);
 }
 
-void TiltVisualHumanoid::setMeasurement(const Vector3 & ya_k, const Vector3 & yg_k, const Vector4 & yR_k, TimeIndex k)
+void TiltVisualHumanoid::setMeasurement(const Vector3 & imuControlPos,
+                                        const Vector3 & imuControlLinVel,
+                                        const Vector3 & ya_k,
+                                        const Vector3 & yg_k,
+                                        const Vector4 & yR_k,
+                                        TimeIndex k)
 {
-  x1_ = R_S_C_.transpose() * (v_C_ + v_S_C_) + (yg_k - R_S_C_.transpose() * w_S_C_).cross(R_S_C_.transpose() * p_S_C_);
+  x1_ = -yg_k.cross(imuControlPos) - imuControlLinVel;
   ObserverBase::MeasureVector y_k(getMeasureSize());
 
   y_k << x1_, ya_k, yg_k, yR_k;

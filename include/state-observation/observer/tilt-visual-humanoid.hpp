@@ -46,62 +46,9 @@ public:
                      Vector3 x2_prime = Vector3::UnitZ(),
                      Vector4 R = Vector4(0, 0, 0, 1));
 
-  /// sets the position of the IMU sensor in the control frame
-  void setSensorPositionInC(const Vector3 & p)
-  {
-    p_S_C_ = p;
-  }
-
-  Vector3 getSensorPositionInC()
-  {
-    return p_S_C_;
-  }
-
-  /// sets the oriantation of the IMU sensor in the control frame
-  void setSensorOrientationInC(const Matrix3 & R)
-  {
-    R_S_C_ = R;
-  }
-  Matrix3 getSensorOrientationInC()
-  {
-    return R_S_C_;
-  }
-
   Vector3 getVirtualLocalVelocityMeasurement()
   {
     return x1_;
-  }
-
-  /// sets teh linear velocity of the IMU sensor in the control frame
-  void setSensorLinearVelocityInC(const Vector3 & v)
-  {
-    v_S_C_ = v;
-  }
-
-  Vector3 getSensorLinearVelocityInC()
-  {
-    return v_S_C_;
-  }
-
-  /// sets the angular velocity of the IMU sensor in the control frame
-  void setSensorAngularVelocityInC(const Vector3 & w)
-  {
-    w_S_C_ = w;
-  }
-  Vector3 getSensorAngularVelocityInC()
-  {
-    return w_S_C_;
-  }
-
-  /// sets the velocity of the control origin in the world frame
-  /// this velocity has to be expressed in the control frame.
-  void setControlOriginVelocityInW(const Vector3 & v)
-  {
-    v_C_ = v;
-  }
-  Vector3 getControlOriginVelocityInW()
-  {
-    return v_C_;
   }
 
 /// prevent c++ overloaded virtual function warning
@@ -159,7 +106,12 @@ public:
   }
 
   /// sets ths measurement (accelero and gyro stacked in one vector)
-  void setMeasurement(const Vector3 & ya_k, const Vector3 & yg_k, const Vector4 & yR_k, TimeIndex k);
+  void setMeasurement(const Vector3 & imuControlPos,
+                      const Vector3 & imuControlLinVel,
+                      const Vector3 & ya_k,
+                      const Vector3 & yg_k,
+                      const Vector4 & yR_k,
+                      TimeIndex k);
 
   /// sets ths measurement (accelero and gyro stacked in one vector)
   void setMeasurement(const Vector3 & yv_k,
@@ -178,21 +130,6 @@ public:
 
 public:
 protected:
-  /// Position of the IMU in the control frame
-  Vector3 p_S_C_;
-
-  /// Orientation of the IMU in the control frame
-  Matrix3 R_S_C_;
-
-  /// Linear velocity of the IMU in the control frame
-  Vector3 v_S_C_;
-
-  /// Angular velocity of the IMU in the control frame
-  Vector3 w_S_C_;
-
-  /// Linear velocity of the control frame
-  Vector3 v_C_;
-
   double rho1_ = 0.0;
   double rho2_ = 0.0;
   double mu_ = 0.0;
