@@ -56,48 +56,35 @@ public:
     return x1_;
   }
 
-  /// sets teh linear velocity of the IMU sensor in the control frame
-  void setSensorLinearVelocityInC(const Vector3 & v)
+  /// set the sampling time of the measurements
+  virtual void setSamplingTime(const double dt)
   {
-    v_S_C_ = v;
+    dt_ = dt;
+  }
+  double getSamplingTime() const
+  {
+    return dt_;
   }
 
-  Vector3 getSensorLinearVelocityInC()
+  /// set the gain of x1_hat variable
+  void setAlpha(const double alpha)
   {
-    return v_S_C_;
+    alpha_ = alpha;
+  }
+  double getAlpha() const
+  {
+    return alpha_;
   }
 
-  /// sets the angular velocity of the IMU sensor in the control frame
-  void setSensorAngularVelocityInC(const Vector3 & w)
+  /// set the gain of x2prime_hat variable
+  void setBeta(const double beta)
   {
-    w_S_C_ = w;
+    beta_ = beta;
   }
-  Vector3 getSensorAngularVelocityInC()
+  double getBeta() const
   {
-    return w_S_C_;
+    return beta_;
   }
-
-  /// sets the velocity of the control origin in the world frame
-  /// this velocity has to be expressed in the control frame.
-  void setControlOriginVelocityInW(const Vector3 & v)
-  {
-    v_C_ = v;
-  }
-  Vector3 getControlOriginVelocityInW()
-  {
-    return v_C_;
-  }
-
-/// prevent c++ overloaded virtual function warning
-#if defined(__clang__)
-#  pragma clang diagnostic push
-#  pragma clang diagnostic ignored "-Woverloaded-virtual"
-#else
-#  if defined(__GNUC__)
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Woverloaded-virtual"
-#  endif
-#endif
 
   /// set rho1
   void setRho1(const double rho1)
