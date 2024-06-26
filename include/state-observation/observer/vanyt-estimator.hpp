@@ -24,7 +24,7 @@ namespace stateObservation
  * \brief  Version of the Tilt Estimator for humanoid robots.
  *
  */
-class STATE_OBSERVATION_DLLAPI VanytEstimator : public TiltEstimatorHumanoid
+class STATE_OBSERVATION_DLLAPI VanytEstimator : public ZeroDelayObserver // : public TiltEstimatorHumanoid
 {
   typedef kine::Orientation Orientation;
 
