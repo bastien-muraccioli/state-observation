@@ -14,14 +14,16 @@ void VanytEstimator::initEstimator(const Vector3 & pos, const Vector3 & x1, cons
 {
   Eigen::VectorXd initStateVector = Eigen::VectorXd::Zero(getStateSize());
 
-  initStateVector.segment<3>(0) = pos;
-  initStateVector.segment<3>(3) = x1;
-  initStateVector.segment<3>(6) = x2_prime;
+  initStateVector.segment<3>(0) = x1;
+  initStateVector.segment<3>(3) = x2_prime;
+  initStateVector.segment<3>(6) = pos;
   initStateVector.tail(4) = R;
 
   setState(initStateVector, 0);
 
   pos_contacts_ = pos;
+  T_hat_.position = pos;
+  T_hat_.orientation.fromVector4(R);
   pos_x1_.setZero();
 }
 
@@ -79,14 +81,13 @@ ObserverBase::StateVector VanytEstimator::oneStepEstimation_()
   Vector3 yg = getMeasurement(k + 1).segment<3>(6);
 
   ObserverBase::StateVector x_hat = getCurrentEstimatedState();
-  x1_hat_ = x_hat.segment<3>(3);
-  x2_hat_prime_ = x_hat.segment<3>(6);
-  T_hat_.orientation.fromVector4(x_hat.tail(4));
+  x1_hat_ = x_hat.segment<3>(0);
+  x2_hat_prime_ = x_hat.segment<3>(3);
 
   Vector dx_hat(getStateSize());
   dx_hat.setZero();
-  dx_hat.segment<3>(3) = x1_hat_.cross(yg) - cst::gravityConstant * x2_hat_prime_ + ya + alpha_ * (yv - x1_hat_); // x1
-  dx_hat.segment<3>(6) = x2_hat_prime_.cross(yg) - beta_ * (yv - x1_hat_); // x2_prime
+  dx_hat.segment<3>(0) = x1_hat_.cross(yg) - cst::gravityConstant * x2_hat_prime_ + ya + alpha_ * (yv - x1_hat_); // x1
+  dx_hat.segment<3>(3) = x2_hat_prime_.cross(yg) - beta_ * (yv - x1_hat_); // x2_prime
   x_hat += dx_hat * dt_;
 
   sigma_ += rho1_ * (T_hat_.orientation.toMatrix3().transpose() * Vector3::UnitZ()).cross(x2_hat_prime_);
