@@ -27,26 +27,25 @@ void VanytEstimator::initEstimator(const Vector3 & pos, const Vector3 & x1, cons
   pos_x1_.setZero();
 }
 
-void VanytEstimator::resetForNextIteration()
+void VanytEstimator::startNewIteration()
 {
-  imuAnchorPos_.reset();
-  worldAnchorPos_.reset();
+  if(k_est_ == k_data_)
+  {
+    ++k_data_;
+    imuAnchorPos_.reset();
+    worldAnchorPos_.reset();
 
-  sigma_.setZero();
-}
-
-void VanytEstimator::setMeasurement(const Vector3 & ya_k, const Vector3 & yg_k, TimeIndex k)
-{
-  x1_ = R_S_C_.transpose() * (v_C_ + v_S_C_) + (yg_k - R_S_C_.transpose() * w_S_C_).cross(R_S_C_.transpose() * p_S_C_);
-  ObserverBase::MeasureVector y_k(getMeasureSize());
-
-  y_k << x1_, ya_k, yg_k;
-
-  ZeroDelayObserver::setMeasurement(y_k, k);
+    sigma_.setZero();
+    oriCorrFromOriMeas_.setZero();
+    posCorrFromContactPos_.setZero();
+    oriCorrFromContactPos_.setZero();
+  }
 }
 
 void VanytEstimator::setMeasurement(const Vector3 & yv_k, const Vector3 & ya_k, const Vector3 & yg_k, TimeIndex k)
 {
+  startNewIteration();
+
   ObserverBase::MeasureVector y_k(getMeasureSize());
   y_k << yv_k, ya_k, yg_k;
 
@@ -55,16 +54,34 @@ void VanytEstimator::setMeasurement(const Vector3 & yv_k, const Vector3 & ya_k, 
 
 void VanytEstimator::addOrientationMeasurement(const Matrix3 & oriMeasurement, double gain)
 {
+  startNewIteration();
+
   Matrix3 rot_diff = oriMeasurement * T_hat_.orientation.toMatrix3().transpose();
   Vector3 rot_diff_vec = kine::skewSymmetricToRotationVector(rot_diff - rot_diff.transpose());
 
-  sigma_ -= gain * T_hat_.orientation.toMatrix3().transpose() * Vector3::UnitZ() * (Vector3::UnitZ()).transpose()
-            * rot_diff_vec;
+  oriCorrFromOriMeas_ -= gain * T_hat_.orientation.toMatrix3().transpose() * Vector3::UnitZ()
+                         * (Vector3::UnitZ()).transpose() * rot_diff_vec;
+}
+
+void VanytEstimator::addContactPosMeasurement(const Vector3 & posMeasurement,
+                                              const Vector3 & imuContactPos,
+                                              double gainDelta,
+                                              double gainSigma)
+{
+  startNewIteration();
+
+  oriCorrFromContactPos_ +=
+      gainSigma
+      * (T_hat_.orientation.toMatrix3().transpose() * (posMeasurement - T_hat_.position())).cross(imuContactPos);
+
+  posCorrFromContactPos_ +=
+      gainDelta * (imuContactPos - T_hat_.orientation.toMatrix3().transpose() * (posMeasurement - T_hat_.position()));
 }
 
 void VanytEstimator::addPositionMeasurement(const Vector3 & worldAnchorPos, const Vector3 & ImuAnchorPos)
 {
   k_contacts_ = getCurrentTime();
+  k_data_ = getCurrentTime();
 
   worldAnchorPos_ = worldAnchorPos;
   imuAnchorPos_ = ImuAnchorPos;
@@ -90,12 +107,18 @@ ObserverBase::StateVector VanytEstimator::oneStepEstimation_()
   dx_hat.segment<3>(3) = x2_hat_prime_.cross(yg) - beta_ * (yv - x1_hat_); // x2_prime
   x_hat += dx_hat * dt_;
 
-  sigma_ += rho1_ * (T_hat_.orientation.toMatrix3().transpose() * Vector3::UnitZ()).cross(x2_hat_prime_);
+  Vector3 dt_vl = (x1_hat_ - posCorrFromContactPos_) * dt_; // using p_dot = R(v_l) = R(x1 - delta)
+
+  sigma_ += rho1_ * (T_hat_.orientation.toMatrix3().transpose() * Vector3::UnitZ()).cross(x2_hat_prime_)
+            + oriCorrFromContactPos_ + oriCorrFromOriMeas_;
   Vector3 dt_omega = (yg - sigma_) * dt_; // using R_dot = RS(w_l) = RS(yg-sigma)
 
-  T_hat_.orientation.integrateRightSide(dt_omega);
+  T_hat_.SE3_integration(dt_vl, dt_omega);
+
+  x_hat.segment<3>(6) = T_hat_.position();
   x_hat.tail(4) = T_hat_.orientation.toVector4();
 
+  /*
   // once the orientation of the IMU in the world is estimated, we can use it to estimate the position of the IMU in the
   // world
   if(k_contacts_ == k)
@@ -106,12 +129,14 @@ ObserverBase::StateVector VanytEstimator::oneStepEstimation_()
     pos_x1_ = expMinDtOverTau_ * pos_x1_
               + (tau_ - expMinDtOverTau_ * tau_) * T_hat_.orientation.toMatrix3() * x_hat.segment<3>(3);
 
-    x_hat.segment<3>(0) = pos_x1_ + pos_contacts_; // pos
+    T_hat_.position = pos_x1_ + pos_contacts_;
+    x_hat.segment<3>(0) = T_hat_.position(); // pos
   }
+  */
 
   setState(x_hat, k + 1);
 
-  resetForNextIteration();
+  k_est_++;
 
   return x_hat;
 }

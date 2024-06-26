@@ -1,6 +1,6 @@
 /**
  * \file      tilt-estimator.hpp
- * \author    Rafael Cisneros, Mehdi Benallegue
+ * \author    Arnaud Demont, Mehdi Benallegue
  * \date       2018
  * \brief      Version of the Tilt Estimator that implements all the necessary functions to perform the estimation for
  * humanoid robots.
@@ -50,6 +50,17 @@ public:
 
   /// sets ths measurement (accelero and gyro stacked in one vector)
   void setMeasurement(const Vector3 & yv_k, const Vector3 & ya_k, const Vector3 & yg_k, TimeIndex k);
+
+  // add an orientation measurement to the correction
+  void addOrientationMeasurement(const Matrix3 & meas, double gain);
+
+  // add a position measurement to the correction
+  void addPositionMeasurement(const Vector3 & worldAnchorPos, const Vector3 & ImuAnchorPos);
+
+  void addContactPosMeasurement(const Vector3 & posMeasurement,
+                                const Vector3 & imuContactPos,
+                                double gainDelta,
+                                double gainSigma);
 
   Vector3 getVirtualLocalVelocityMeasurement()
   {
@@ -107,17 +118,25 @@ public:
     return tau_;
   }
 
-  /// set the sampling time of the measurements
-  virtual void setSamplingTime(const double dt) override
-  {
-    TiltEstimator::setSamplingTime(dt);
-    expMinDtOverTau_ = exp(-dt_ / tau_);
-  }
-
   // returns the correction term applied on the estimated orientation
   inline const stateObservation::Vector3 & getOriCorrection() const
   {
     return sigma_;
+  }
+  // correction of the position coming from the contact positions, passed as a local linear velocity.
+  inline const stateObservation::Vector3 & getPosCorrectionFromContactPos() const
+  {
+    return posCorrFromContactPos_;
+  }
+  // correction of the orientation coming from the contact positions, passed as a local angular velocity.
+  inline const stateObservation::Vector3 & geOriCorrectionFromContactPos() const
+  {
+    return oriCorrFromContactPos_;
+  }
+  // correction of the orientation coming from direct orientation measurements, passed as a local angular velocity.
+  inline const stateObservation::Vector3 & getOriCorrFromOriMeas() const
+  {
+    return oriCorrFromOriMeas_;
   }
   // returns the position pseudo-mmesurement coming from the contacts
   inline const stateObservation::Vector3 & getPosContacts() const
@@ -129,26 +148,6 @@ public:
   {
     return pos_x1_;
   }
-
-  /// sets ths measurement (accelero and gyro stacked in one vector)
-  void setMeasurement(const Vector3 & ya_k, const Vector3 & yg_k, TimeIndex k);
-
-  /// sets ths measurement (accelero and gyro stacked in one vector)
-  void setMeasurement(const Vector3 & yv_k, const Vector3 & ya_k, const Vector3 & yg_k, TimeIndex k);
-
-  // add an orientation measurement to the correction
-  void addOrientationMeasurement(const Matrix3 & meas, double gain);
-
-  // add a position measurement to the correction
-  void addPositionMeasurement(const Vector3 & worldAnchorPos, const Vector3 & ImuAnchorPos);
-
-#if defined(__clang__)
-#  pragma clang diagnostic pop
-#else
-#  if defined(__GNUC__)
-#    pragma GCC diagnostic pop
-#  endif
-#endif
 
 public:
 protected:
@@ -168,12 +167,23 @@ protected:
   double tau_;
   double expMinDtOverTau_;
 
+  // correction of the orientation passed as a local angular velocity
   Vector3 sigma_ = Vector3::Zero();
+  // correction of the orientation coming from the contact orientations, passed as a local angular velocity.
+  Vector3 oriCorrFromOriMeas_ = Vector3::Zero();
+  // correction of the position coming from the contact positions, passed as a local linear velocity.
+  Vector3 posCorrFromContactPos_ = Vector3::Zero();
+  // correction of the orientation coming from the contact positions, passed as a local angular velocity.
+  Vector3 oriCorrFromContactPos_ = Vector3::Zero();
 
   /// Orientation estimator loop
   StateVector oneStepEstimation_() override;
 
-  void resetForNextIteration();
+  void startNewIteration();
+
+  TimeIndex k_est_ = 0.0; // time index of the last estimation
+  TimeIndex k_data_ = 0.0; // time index of the current measurements
+  TimeIndex k_contacts_ = 0.0; // time index of the contact measurements
 
   /// Sampling time
   double dt_;
