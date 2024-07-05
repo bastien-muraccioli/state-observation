@@ -14,6 +14,8 @@
 #define VanytEstimatorHPP
 
 #include "state-observation/observer/tilt-estimator-humanoid.hpp"
+
+#include <boost/circular_buffer.hpp>
 #include <state-observation/api.h>
 
 namespace stateObservation
@@ -28,14 +30,88 @@ class STATE_OBSERVATION_DLLAPI VanytEstimator : public ZeroDelayObserver // : pu
 {
   typedef kine::Orientation Orientation;
 
+protected:
+  struct IterInfos
+  {
+    IterInfos(double alpha, double beta, double rho, double dt) : dt_(dt), alpha_(alpha), beta_(beta), rho_(rho) {}
+    // add an orientation measurement to the correction
+    void addOrientationMeasurement(const Matrix3 & meas, double gain);
+
+    void addContactPosMeasurement(const Vector3 & posMeasurement,
+                                  const Vector3 & imuContactPos,
+                                  double gainDelta,
+                                  double gainSigma);
+
+    StateVector replayBufferedIteration();
+
+    Eigen::Matrix<double, 12, 1> computeStateDerivatives();
+
+    /// @brief integrates the given dx into the given state.
+    /// @param dx_hat The state increment to integrate
+    void integrateState(const Eigen::Matrix<double, 12, 1> & dx_hat);
+
+    void startNewIteration();
+    void resetCorrectionTerms();
+
+    inline void saveMeasurement(const ObserverBase::MeasureVector & y_k)
+    {
+      y_k_ = y_k;
+    }
+
+    int iter_ = 0;
+
+    /// Sampling time
+    double dt_;
+    /// The parameters of the estimator
+    double alpha_, beta_, rho_;
+    /// Estimated pose of the IMU
+    kine::Kinematics currentPose_;
+    // state at time k-1
+    ObserverBase::StateVector initState_;
+    // updated state (at the end of the iteration)
+    ObserverBase::StateVector updatedState_;
+    // measurements at time k
+    ObserverBase::MeasureVector y_k_;
+
+    // correction of the orientation passed as a local angular velocity
+    Vector3 sigma_ = Vector3::Zero();
+    // correction of the orientation coming from the contact orientations, passed as a local angular velocity.
+    Vector3 oriCorrFromOriMeas_ = Vector3::Zero();
+    // correction of the position coming from the contact positions, passed as a local linear velocity.
+    Vector3 posCorrFromContactPos_ = Vector3::Zero();
+    // correction of the orientation coming from the contact positions, passed as a local angular velocity.
+    Vector3 oriCorrFromContactPos_ = Vector3::Zero();
+
+    TimeIndex k_est_ = 0.0; // time index of the last estimation
+    TimeIndex k_data_ = 0.0; // time index of the current measurements
+    TimeIndex k_contacts_ = 0.0; // time index of the contact measurements
+  };
+
+private:
+  IterInfos iterInfos_;
+
 public:
   /// The constructor
   ///  \li alpha : parameter related to the convergence of the linear velocity
   ///              of the IMU expressed in the control frame
   ///  \li beta  : parameter related to the fast convergence of the tilt
   ///  \li rho  : parameter related to the orthogonality
+  ///  \li dt  : timestep between each iteration
   VanytEstimator(double alpha, double beta, double rho, double dt);
 
+  /// The constructor
+  ///  \li alpha : parameter related to the convergence of the linear velocity
+  ///              of the IMU expressed in the control frame
+  ///  \li beta  : parameter related to the fast convergence of the tilt
+  ///  \li rho  : parameter related to the orthogonality
+  ///  \li dt  : timestep between each iteration
+  ///  \li dt  : capacity of the iteration buffer
+  VanytEstimator(double alpha, double beta, double rho, double dt, unsigned long bufferCapacity);
+
+  inline IterInfos & getCurrentIter()
+  {
+    return iterInfos_;
+  }
   /// @brief initializes the state vector.
   /// @param x1 The initial local linear velocity of the IMU.
   /// @param x2_p The initial value of the intermediate estimate of the IMU's tilt.
@@ -45,24 +121,53 @@ public:
                      const Vector3 & x2_prime = Vector3::UnitZ(),
                      const Vector4 & R = Vector4(0, 0, 0, 1));
 
-  /// @brief Resets x1hat (the estimate of the local linear velocity of the IMU in the world)
-  /// @details Avoid discontinuities when the computation mode of the anchor point changes
-  void resetImuLocVelHat();
-
-  /// sets the measurement
-  void setMeasurement(const Vector3 & yv_k, const Vector3 & ya_k, const Vector3 & yg_k, TimeIndex k);
+  /// @brief sets the measurement
+  /// @param yv_k
+  /// @param ya_k.
+  /// @param yg_k
+  /// @param k
+  /// @param resetImuLocVelHat Resets x1hat (the estimate of the local linear velocity of the IMU in the world). Avoid
+  /// discontinuities when the computation mode of the anchor point changes
+  void setMeasurement(const Vector3 & yv_k,
+                      const Vector3 & ya_k,
+                      const Vector3 & yg_k,
+                      TimeIndex k,
+                      bool resetImuLocVelHat = false);
 
   void setMeasurement(const ObserverBase::MeasureVector & y_k, TimeIndex k) override;
 
-  // add an orientation measurement to the correction
+  /// @brief adds the correction from a direct measurement of the IMU's frame orientation.
+  /// @param meas measured orientation of the IMU's frame in the world
+  /// @param gain weight of the correction
   void addOrientationMeasurement(const Matrix3 & meas, double gain);
 
+  /// @brief adds the correction from a contact position measurement
+  /// @param posMeasurement measured position of the contact in the world
+  /// @param imuContactPos position of the contact in the imu's frame.
+  /// @param gainDelta weight of the position correction
+  /// @param gainSigma weight of the orientation correction
   void addContactPosMeasurement(const Vector3 & posMeasurement,
                                 const Vector3 & imuContactPos,
                                 double gainDelta,
                                 double gainSigma);
 
-  StateVector replayBufferedIteration(BufferedIter & bufferedIter, const std::array<double, 3> & gains);
+  /// @brief replays a previous iteration with an additional orientation measurement.
+  /// @param delay delay between the iteration receiving the measurement and the current one.
+  /// @param meas measured orientation of the IMU's frame in the world
+  /// @param gain weight of the correction
+  StateVector replayIterationWithDelayedOri(unsigned long delay, const Matrix3 & meas, double gain);
+
+  /// @brief replays a previous iteration with an additional orientation measurement.
+  /// @details this version also computes the transformation coming from the correction, that can be applied on other
+  /// frames.
+  /// @param delay delay between the iteration receiving the measurement and the current one.
+  /// @param meas measured orientation of the IMU's frame in the world
+  /// @param gain weight of the correction
+  /// @param poseTransfo // transformation coming from the orientation correction
+  StateVector replayIterationWithDelayedOri(unsigned long delay,
+                                            const Matrix3 & meas,
+                                            double gain,
+                                            kine::Kinematics & poseTransfo);
 
   Vector3 getVirtualLocalVelocityMeasurement()
   {
@@ -70,95 +175,94 @@ public:
   }
 
   /// set the sampling time of the measurements
+  virtual void setBufferCapacity(unsigned long bufferCapacity)
+  {
+    withDelayedOri_ = true;
+    bufferedIters_.set_capacity(bufferCapacity);
+  }
+  double getWithDelayedOri() const
+  {
+    return withDelayedOri_;
+  }
+
+  /// set the sampling time of the measurements
   virtual void setSamplingTime(const double dt)
   {
-    dt_ = dt;
+    getCurrentIter().dt_ = dt;
   }
-  double getSamplingTime() const
+  double getSamplingTime()
   {
-    return dt_;
+    return getCurrentIter().dt_;
   }
 
   /// set the gain of x1_hat variable
   void setAlpha(const double alpha)
   {
-    alpha_ = alpha;
+    getCurrentIter().alpha_ = alpha;
   }
-  double getAlpha() const
+  double getAlpha()
   {
-    return alpha_;
+    return getCurrentIter().alpha_;
   }
 
   /// set the gain of x2prime_hat variable
   void setBeta(const double beta)
   {
-    beta_ = beta;
+    getCurrentIter().beta_ = beta;
   }
-  double getBeta() const
+  double getBeta()
   {
-    return beta_;
+    return getCurrentIter().beta_;
   }
 
   /// set rho
   void setRho(const double rho)
   {
-    rho_ = rho;
+    getCurrentIter().rho_ = rho;
   }
-  double getRho() const
+  double getRho()
   {
-    return rho_;
+    return getCurrentIter().rho_;
+  }
+
+  inline const boost::circular_buffer<IterInfos> & getIterationsBuffer() const
+  {
+    return bufferedIters_;
   }
 
   // returns the correction term applied on the estimated orientation
-  inline const stateObservation::Vector3 & getOriCorrection() const
+  inline const stateObservation::Vector3 & getOriCorrection()
   {
-    return sigma_;
+    return getCurrentIter().sigma_;
   }
   // correction of the position coming from the contact positions, passed as a local linear velocity.
-  inline const stateObservation::Vector3 & getPosCorrectionFromContactPos() const
+  inline const stateObservation::Vector3 & getPosCorrectionFromContactPos()
   {
-    return posCorrFromContactPos_;
+    return getCurrentIter().posCorrFromContactPos_;
   }
   // correction of the orientation coming from the contact positions, passed as a local angular velocity.
-  inline const stateObservation::Vector3 & geOriCorrectionFromContactPos() const
+  inline const stateObservation::Vector3 & geOriCorrectionFromContactPos()
   {
-    return oriCorrFromContactPos_;
+    return getCurrentIter().oriCorrFromContactPos_;
   }
   // correction of the orientation coming from direct orientation measurements, passed as a local angular velocity.
-  inline const stateObservation::Vector3 & getOriCorrFromOriMeas() const
+  inline const stateObservation::Vector3 & getOriCorrFromOriMeas()
   {
-    return oriCorrFromOriMeas_;
+    return getCurrentIter().oriCorrFromOriMeas_;
   }
 
 protected:
   /// Orientation estimator loop
   StateVector oneStepEstimation_() override;
-  Eigen::Matrix<double, 12, 1> computeStateDerivatives(const ObserverBase::StateVector & x_hat,
-                                                       const ObserverBase::MeasureVector & y_k);
 
-  /// @brief integrates the given dx into the given state.
-  /// @param x_hat The state to update
-  /// @param T_hat The transformation matrix containing the state position and orientation (passed again under this
-  /// shape for convenience)
-  /// @param dx_hat The state increment to integrate
-  void integrateState(ObserverBase::StateVector & x_hat,
-                      kine::Kinematics & T_hat,
-                      const Eigen::Matrix<double, 12, 1> & dx_hat);
-
-  void startNewIteration();
-  void resetCorrectionTerms();
-
-  TimeIndex k_est_ = 0.0; // time index of the last estimation
-  TimeIndex k_data_ = 0.0; // time index of the current measurements
-  TimeIndex k_contacts_ = 0.0; // time index of the contact measurements
-
-  /// Sampling time
-  double dt_;
+protected:
+  // indicates if the estimator will be used along a source of delayed orientation measurements.
+  bool withDelayedOri_;
 
   /// variables used for the computation
   Vector3 x1_;
-  Vector3 x1_hat_;
-  Vector3 x2_hat_prime_;
+
+  boost::circular_buffer<IterInfos> bufferedIters_;
 };
 
 } // namespace stateObservation
