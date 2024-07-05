@@ -191,7 +191,7 @@ void VanytEstimator::IterInfos::integrateState(const Eigen::Matrix<double, 12, 1
 
   // discrete-time integration of p and R
   T_hat.SE3_integration(vl * dt_, omega * dt_);
-  std::cout << std::endl << "Tafter: " << T_hat.orientation.toRotationVector().transpose() << std::endl;
+
   updatedState_.segment<3>(6) = T_hat.position();
   updatedState_.tail(4) = T_hat.orientation.toVector4();
 }
