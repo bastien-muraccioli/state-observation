@@ -32,14 +32,16 @@ void VanytEstimator::startNewIteration()
   if(k_est_ == k_data_)
   {
     ++k_data_;
-    imuAnchorPos_.reset();
-    worldAnchorPos_.reset();
-
-    sigma_.setZero();
-    oriCorrFromOriMeas_.setZero();
-    posCorrFromContactPos_.setZero();
-    oriCorrFromContactPos_.setZero();
+    resetCorrectionTerms();
   }
+}
+
+void VanytEstimator::resetCorrectionTerms()
+{
+  sigma_.setZero();
+  oriCorrFromOriMeas_.setZero();
+  posCorrFromContactPos_.setZero();
+  oriCorrFromContactPos_.setZero();
 }
 
 void VanytEstimator::setMeasurement(const Vector3 & yv_k, const Vector3 & ya_k, const Vector3 & yg_k, TimeIndex k)
@@ -48,6 +50,13 @@ void VanytEstimator::setMeasurement(const Vector3 & yv_k, const Vector3 & ya_k, 
 
   ObserverBase::MeasureVector y_k(getMeasureSize());
   y_k << yv_k, ya_k, yg_k;
+
+  ZeroDelayObserver::setMeasurement(y_k, k);
+}
+
+void VanytEstimator::setMeasurement(const ObserverBase::MeasureVector & y_k, TimeIndex k)
+{
+  startNewIteration();
 
   ZeroDelayObserver::setMeasurement(y_k, k);
 }
@@ -78,67 +87,97 @@ void VanytEstimator::addContactPosMeasurement(const Vector3 & posMeasurement,
       gainDelta * (imuContactPos - T_hat_.orientation.toMatrix3().transpose() * (posMeasurement - T_hat_.position()));
 }
 
-void VanytEstimator::addPositionMeasurement(const Vector3 & worldAnchorPos, const Vector3 & ImuAnchorPos)
-{
-  k_contacts_ = getCurrentTime();
-  k_data_ = getCurrentTime();
-
-  worldAnchorPos_ = worldAnchorPos;
-  imuAnchorPos_ = ImuAnchorPos;
-}
-
 ObserverBase::StateVector VanytEstimator::oneStepEstimation_()
 {
   TimeIndex k = this->x_.getTime();
 
   BOOST_ASSERT(this->y_.size() > 0 && this->y_.checkIndex(k + 1) && "ERROR: The measurement vector is not set");
 
-  Vector3 yv = getMeasurement(k + 1).head<3>();
-  Vector3 ya = getMeasurement(k + 1).segment<3>(3);
-  Vector3 yg = getMeasurement(k + 1).segment<3>(6);
-
   ObserverBase::StateVector x_hat = getCurrentEstimatedState();
-  x1_hat_ = x_hat.segment<3>(0);
-  x2_hat_prime_ = x_hat.segment<3>(3);
 
-  Vector dx_hat(getStateSize());
-  dx_hat.setZero();
-  dx_hat.segment<3>(0) = x1_hat_.cross(yg) - cst::gravityConstant * x2_hat_prime_ + ya + alpha_ * (yv - x1_hat_); // x1
-  dx_hat.segment<3>(3) = x2_hat_prime_.cross(yg) - beta_ * (yv - x1_hat_); // x2_prime
-  x_hat += dx_hat * dt_;
-
-  Vector3 dt_vl = (x1_hat_ - posCorrFromContactPos_) * dt_; // using p_dot = R(v_l) = R(x1 - delta)
-
-  sigma_ += rho1_ * (T_hat_.orientation.toMatrix3().transpose() * Vector3::UnitZ()).cross(x2_hat_prime_)
-            + oriCorrFromContactPos_ + oriCorrFromOriMeas_;
-  Vector3 dt_omega = (yg - sigma_) * dt_; // using R_dot = RS(w_l) = RS(yg-sigma)
-
-  T_hat_.SE3_integration(dt_vl, dt_omega);
-
-  x_hat.segment<3>(6) = T_hat_.position();
-  x_hat.tail(4) = T_hat_.orientation.toVector4();
-
-  /*
-  // once the orientation of the IMU in the world is estimated, we can use it to estimate the position of the IMU in the
-  // world
-  if(k_contacts_ == k)
-  {
-    Vector3 worldPosFromContacts = worldAnchorPos_() - T_hat_.orientation.toMatrix3() * imuAnchorPos_();
-    pos_contacts_ = expMinDtOverTau_ * pos_contacts_ + (1 - expMinDtOverTau_) * worldPosFromContacts;
-
-    pos_x1_ = expMinDtOverTau_ * pos_x1_
-              + (tau_ - expMinDtOverTau_ * tau_) * T_hat_.orientation.toMatrix3() * x_hat.segment<3>(3);
-
-    T_hat_.position = pos_x1_ + pos_contacts_;
-    x_hat.segment<3>(0) = T_hat_.position(); // pos
-  }
-  */
+  Eigen::Matrix<double, 12, 1> dx_hat = computeStateDerivatives(x_hat, getMeasurement(k + 1));
+  integrateState(x_hat, T_hat_, dx_hat);
 
   setState(x_hat, k + 1);
 
   k_est_++;
 
   return x_hat;
+}
+
+ObserverBase::StateVector VanytEstimator::replayBufferedIteration(BufferedIter & bufferedIter,
+                                                                  const std::array<double, 3> & gains)
+{
+  double prevAlpha = alpha_;
+  double prevBeta = beta_;
+  double prevRho = rho_;
+
+  setAlpha(gains.at(0));
+  setBeta(gains.at(1));
+  setRho(gains.at(2));
+
+  StateVector integratedState = bufferedIter.x_k_;
+  kine::Kinematics T_hat(bufferedIter.x_k_.tail(7), kine::Kinematics::Flags::pose);
+
+  setMeasurement(bufferedIter.y_k_, getCurrentTime() + 1);
+  for(auto & contactPosMeas : bufferedIter.contactPosMeasurements_)
+  {
+    addContactPosMeasurement(contactPosMeas.worldContactRefPos_, contactPosMeas.imuContactPos_, contactPosMeas.lambda_,
+                             contactPosMeas.gamma_);
+  }
+  for(auto & oriMeas : bufferedIter.oriMeasurements_)
+  {
+    addOrientationMeasurement(oriMeas.measuredOri_, oriMeas.gain_);
+  Eigen::Matrix<double, 12, 1> dx_hat = computeStateDerivatives(bufferedIter.x_k_, bufferedIter.y_k_);
+  integrateState(integratedState, T_hat, dx_hat);
+
+  resetCorrectionTerms();
+
+  setAlpha(prevAlpha);
+  setBeta(prevBeta);
+  setRho(prevRho);
+
+  return integratedState;
+}
+
+Eigen::Matrix<double, 12, 1> VanytEstimator::computeStateDerivatives(const ObserverBase::StateVector & x_hat,
+                                                                     const ObserverBase::MeasureVector & y_k)
+{
+  const Vector3 & yv = y_k.head<3>();
+  const Vector3 & ya = y_k.segment<3>(3);
+  const Vector3 & yg = y_k.segment<3>(6);
+
+  x1_hat_ = x_hat.segment<3>(0);
+  x2_hat_prime_ = x_hat.segment<3>(3);
+
+  Eigen::Matrix<double, 12, 1> dx_hat;
+  dx_hat.segment<3>(0) = x1_hat_.cross(yg) - cst::gravityConstant * x2_hat_prime_ + ya + alpha_ * (yv - x1_hat_); // x1
+  dx_hat.segment<3>(3) = x2_hat_prime_.cross(yg) - beta_ * (yv - x1_hat_); // x2_prime
+
+  dx_hat.segment<3>(6) = (x1_hat_ - posCorrFromContactPos_); // using p_dot = R(v_l) = R(x1 - delta)
+
+  sigma_ += rho_ * (T_hat_.orientation.toMatrix3().transpose() * Vector3::UnitZ()).cross(x2_hat_prime_)
+            + oriCorrFromContactPos_ + oriCorrFromOriMeas_;
+  dx_hat.segment<3>(9) = (yg - sigma_); // using R_dot = RS(w_l) = RS(yg-sigma)
+
+  return dx_hat;
+}
+
+void VanytEstimator::integrateState(ObserverBase::StateVector & x_hat,
+                                    kine::Kinematics & T_hat,
+                                    const Eigen::Matrix<double, 12, 1> & dx_hat)
+{
+  const Vector3 & vl = dx_hat.segment<3>(6);
+  const Vector3 & omega = dx_hat.segment<3>(9);
+
+  // discrete-time integration of x1 and x2
+  x_hat.segment<6>(0) += dx_hat.segment<6>(0) * dt_;
+
+  // discrete-time integration of p and R
+  T_hat.SE3_integration(vl * dt_, omega * dt_);
+  std::cout << std::endl << "Tafter: " << T_hat.orientation.toRotationVector().transpose() << std::endl;
+  x_hat.segment<3>(6) = T_hat.position();
+  x_hat.tail(4) = T_hat.orientation.toVector4();
 }
 
 void VanytEstimator::resetImuLocVelHat()

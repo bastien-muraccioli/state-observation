@@ -33,7 +33,8 @@ public:
   ///  \li alpha : parameter related to the convergence of the linear velocity
   ///              of the IMU expressed in the control frame
   ///  \li beta  : parameter related to the fast convergence of the tilt
-  VanytEstimator(double alpha, double beta, double tau, double dt);
+  ///  \li rho  : parameter related to the orthogonality
+  VanytEstimator(double alpha, double beta, double rho, double dt);
 
   /// @brief initializes the state vector.
   /// @param x1 The initial local linear velocity of the IMU.
@@ -48,19 +49,20 @@ public:
   /// @details Avoid discontinuities when the computation mode of the anchor point changes
   void resetImuLocVelHat();
 
-  /// sets ths measurement (accelero and gyro stacked in one vector)
+  /// sets the measurement
   void setMeasurement(const Vector3 & yv_k, const Vector3 & ya_k, const Vector3 & yg_k, TimeIndex k);
+
+  void setMeasurement(const ObserverBase::MeasureVector & y_k, TimeIndex k) override;
 
   // add an orientation measurement to the correction
   void addOrientationMeasurement(const Matrix3 & meas, double gain);
-
-  // add a position measurement to the correction
-  void addPositionMeasurement(const Vector3 & worldAnchorPos, const Vector3 & ImuAnchorPos);
 
   void addContactPosMeasurement(const Vector3 & posMeasurement,
                                 const Vector3 & imuContactPos,
                                 double gainDelta,
                                 double gainSigma);
+
+  StateVector replayBufferedIteration(BufferedIter & bufferedIter, const std::array<double, 3> & gains);
 
   Vector3 getVirtualLocalVelocityMeasurement()
   {
@@ -97,25 +99,14 @@ public:
     return beta_;
   }
 
-  /// set rho1
-  void setRho1(const double rho1)
+  /// set rho
+  void setRho(const double rho)
   {
-    rho1_ = rho1;
+    rho_ = rho;
   }
-  double getRho1() const
+  double getRho() const
   {
-    return rho1_;
-  }
-
-  /// set tau
-  void setTau(const double tau)
-  {
-    tau_ = tau;
-    expMinDtOverTau_ = exp(-dt_ / tau_);
-  }
-  double getTau() const
-  {
-    return tau_;
+    return rho_;
   }
 
   // returns the correction term applied on the estimated orientation
@@ -138,48 +129,24 @@ public:
   {
     return oriCorrFromOriMeas_;
   }
-  // returns the position pseudo-mmesurement coming from the contacts
-  inline const stateObservation::Vector3 & getPosContacts() const
-  {
-    return pos_contacts_;
-  }
-  // returns the position pseudo-mmesurement coming from the integration of x1
-  inline const stateObservation::Vector3 & getPosX1() const
-  {
-    return pos_x1_;
-  }
 
-public:
 protected:
-  /// The parameters of the estimator
-  double alpha_, beta_;
-
-  /// Estimated pose of the IMU
-  kine::Kinematics T_hat_;
-
-  CheckedVector3 worldAnchorPos_;
-  CheckedVector3 imuAnchorPos_;
-  Vector3 pos_contacts_;
-  Vector3 pos_x1_;
-
-  double rho1_ = 0.0;
-
-  double tau_;
-  double expMinDtOverTau_;
-
-  // correction of the orientation passed as a local angular velocity
-  Vector3 sigma_ = Vector3::Zero();
-  // correction of the orientation coming from the contact orientations, passed as a local angular velocity.
-  Vector3 oriCorrFromOriMeas_ = Vector3::Zero();
-  // correction of the position coming from the contact positions, passed as a local linear velocity.
-  Vector3 posCorrFromContactPos_ = Vector3::Zero();
-  // correction of the orientation coming from the contact positions, passed as a local angular velocity.
-  Vector3 oriCorrFromContactPos_ = Vector3::Zero();
-
   /// Orientation estimator loop
   StateVector oneStepEstimation_() override;
+  Eigen::Matrix<double, 12, 1> computeStateDerivatives(const ObserverBase::StateVector & x_hat,
+                                                       const ObserverBase::MeasureVector & y_k);
+
+  /// @brief integrates the given dx into the given state.
+  /// @param x_hat The state to update
+  /// @param T_hat The transformation matrix containing the state position and orientation (passed again under this
+  /// shape for convenience)
+  /// @param dx_hat The state increment to integrate
+  void integrateState(ObserverBase::StateVector & x_hat,
+                      kine::Kinematics & T_hat,
+                      const Eigen::Matrix<double, 12, 1> & dx_hat);
 
   void startNewIteration();
+  void resetCorrectionTerms();
 
   TimeIndex k_est_ = 0.0; // time index of the last estimation
   TimeIndex k_data_ = 0.0; // time index of the current measurements
