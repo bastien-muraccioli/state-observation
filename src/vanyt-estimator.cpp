@@ -26,8 +26,9 @@ void VanytEstimator::initEstimator(const Vector3 & pos, const Vector3 & x1, cons
   getCurrentIter().initState_ = initStateVector;
   getCurrentIter().updatedState_ = initStateVector;
 
-  getCurrentIter().currentPose_.position = pos;
-  getCurrentIter().currentPose_.orientation.fromVector4(R);
+  getCurrentIter().initPose_.position = pos;
+  getCurrentIter().initPose_.orientation.fromVector4(R);
+  getCurrentIter().updatedPose_ = getCurrentIter().initPose_;
 }
 
 void VanytEstimator::IterInfos::startNewIteration()
@@ -36,8 +37,9 @@ void VanytEstimator::IterInfos::startNewIteration()
   {
     ++k_data_;
 
-    iter_++;
     initState_ = updatedState_;
+    initPose_ = updatedPose_;
+
     resetCorrectionTerms();
   }
 }
@@ -82,9 +84,10 @@ void VanytEstimator::IterInfos::addOrientationMeasurement(const Matrix3 & oriMea
 {
   startNewIteration();
 
-  Matrix3 rot_diff = oriMeasurement * currentPose_.orientation.toMatrix3().transpose();
-  Vector3 rot_diff_vec = kine::skewSymmetricToRotationVector(rot_diff - rot_diff.transpose());
-  oriCorrFromOriMeas_ -= gain * currentPose_.orientation.toMatrix3().transpose() * Vector3::UnitZ()
+  Matrix3 rot_diff = oriMeasurement * initPose_.orientation.toMatrix3().transpose();
+  Vector3 rot_diff_vec = kine::skewSymmetricToRotationVector(rot_diff - rot_diff.transpose()) / 2.0;
+
+  oriCorrFromOriMeas_ -= gain * initPose_.orientation.toMatrix3().transpose() * Vector3::UnitZ()
                          * (Vector3::UnitZ()).transpose() * rot_diff_vec;
 }
 
@@ -110,12 +113,11 @@ void VanytEstimator::IterInfos::addContactPosMeasurement(const Vector3 & posMeas
 
   oriCorrFromContactPos_ +=
       gainSigma
-      * (currentPose_.orientation.toMatrix3().transpose() * (posMeasurement - currentPose_.position()))
-            .cross(imuContactPos);
+      * (initPose_.orientation.toMatrix3().transpose() * (posMeasurement - initPose_.position())).cross(imuContactPos);
 
   posCorrFromContactPos_ +=
       gainDelta
-      * (imuContactPos - currentPose_.orientation.toMatrix3().transpose() * (posMeasurement - currentPose_.position()));
+      * (imuContactPos - initPose_.orientation.toMatrix3().transpose() * (posMeasurement - initPose_.position()));
 }
 
 ObserverBase::StateVector VanytEstimator::oneStepEstimation_()
@@ -132,7 +134,8 @@ ObserverBase::StateVector VanytEstimator::oneStepEstimation_()
 
   setState(currentIter.updatedState_, k + 1);
 
-  getCurrentIter().k_est_++;
+  currentIter.k_est_++;
+
   if(withDelayedOri_)
   {
     bufferedIters_.push_front(currentIter);
@@ -143,13 +146,10 @@ ObserverBase::StateVector VanytEstimator::oneStepEstimation_()
 
 ObserverBase::StateVector VanytEstimator::IterInfos::replayBufferedIteration()
 {
-  StateVector integratedState = initState_;
-  currentPose_.fromVector(initState_.tail(7), kine::Kinematics::Flags::pose);
-
   Eigen::Matrix<double, 12, 1> dx_hat = computeStateDerivatives();
   integrateState(dx_hat);
 
-  return integratedState;
+  return updatedState_;
 }
 
 Eigen::Matrix<double, 12, 1> VanytEstimator::IterInfos::computeStateDerivatives()
@@ -171,8 +171,9 @@ Eigen::Matrix<double, 12, 1> VanytEstimator::IterInfos::computeStateDerivatives(
 
   dx_hat.segment<3>(6) = (x1_hat - posCorrFromContactPos); // using p_dot = R(v_l) = R(x1 - delta)
 
-  sigma_ = rho_ * (currentPose_.orientation.toMatrix3().transpose() * Vector3::UnitZ()).cross(x2_hat_prime)
+  sigma_ = rho_ * (initPose_.orientation.toMatrix3().transpose() * Vector3::UnitZ()).cross(x2_hat_prime)
            + oriCorrFromContactPos + oriCorrFromOriMeas;
+
   dx_hat.segment<3>(9) = (yg - sigma_); // using R_dot = RS(w_l) = RS(yg-sigma)
 
   return dx_hat;
@@ -184,16 +185,16 @@ void VanytEstimator::IterInfos::integrateState(const Eigen::Matrix<double, 12, 1
   const Vector3 & omega = dx_hat.segment<3>(9);
 
   updatedState_ = initState_;
-  kine::Kinematics & T_hat = currentPose_;
+  updatedPose_ = initPose_;
 
   // discrete-time integration of x1 and x2
   updatedState_.segment<6>(0) += dx_hat.segment<6>(0) * dt_;
 
   // discrete-time integration of p and R
-  T_hat.SE3_integration(vl * dt_, omega * dt_);
+  updatedPose_.SE3_integration(vl * dt_, omega * dt_);
 
-  updatedState_.segment<3>(6) = T_hat.position();
-  updatedState_.tail(4) = T_hat.orientation.toVector4();
+  updatedState_.segment<3>(6) = updatedPose_.position();
+  updatedState_.tail(4) = updatedPose_.orientation.toVector4();
 }
 
 ObserverBase::StateVector VanytEstimator::replayIterationWithDelayedOri(unsigned long delay,
@@ -203,43 +204,43 @@ ObserverBase::StateVector VanytEstimator::replayIterationWithDelayedOri(unsigned
   BOOST_ASSERT_MSG(withDelayedOri_, "The mode allowing to deal with delayed orientations has not been switched on.");
 
   IterInfos & bufferedIter = bufferedIters_.at(delay - 1);
+  // allows to avoid runing startNewIteration() and thus resetting the correction terms.
+  bufferedIter.k_est_--;
+
   bufferedIter.addOrientationMeasurement(meas, gain);
 
-  StateVector replayedState = bufferedIter.replayBufferedIteration();
-  return replayedState;
+  bufferedIter.k_est_++;
+
+  return bufferedIter.replayBufferedIteration();
 }
 
-ObserverBase::StateVector VanytEstimator::replayIterationWithDelayedOri(unsigned long delay,
-                                                                        const Matrix3 & meas,
-                                                                        double gain,
-                                                                        kine::Kinematics & poseTransfo)
+ObserverBase::StateVector VanytEstimator::replayIterationsWithDelayedOri(unsigned long delay,
+                                                                         const Matrix3 & meas,
+                                                                         double gain)
 {
   BOOST_ASSERT_MSG(withDelayedOri_, "The mode allowing to deal with delayed orientations has not been switched on.");
+  BOOST_ASSERT_MSG(getCurrentIter().k_data_ == getCurrentIter().k_est_,
+                   "The replay must be called at the beginning or the end of the iteration.");
 
-  Eigen::Ref<Eigen::Matrix<double, 7, 1>> latestStatePose = getCurrentEstimatedState().tail(7);
-
-  // extracting the buffered iteration
   IterInfos & bufferedIter = bufferedIters_.at(delay - 1);
+  StateVector latestState = getCurrentEstimatedState();
 
-  // kinematics that were obtained after the integration without the orientation measurement.
-  const kine::Kinematics kineEstWithoutOri = bufferedIter.currentPose_;
+  Eigen::Ref<Eigen::Matrix<double, 7, 1>> latestStatePose = latestState.tail(7);
+
+  kine::Kinematics & latestKine = getCurrentIter().updatedPose_;
+
+  kine::Kinematics deltaKine = latestKine * bufferedIter.updatedPose_.getInverse();
 
   // we add the delayed orientation measurement to the inputs of the buffered iteration and recompute the state update.
-  bufferedIter.addOrientationMeasurement(meas, gain);
-  StateVector replayedEstimation = bufferedIter.replayBufferedIteration();
+  replayIterationWithDelayedOri(delay, meas, gain);
+  latestKine = deltaKine * bufferedIter.updatedPose_;
 
-  // kinematics that are obtained after the integration with the orientation measurement.
-  const kine::Kinematics & kineEstWithOri = bufferedIter.currentPose_;
-  // transformation coming from the orientation correction
-  poseTransfo = kineEstWithoutOri.getInverse() * kineEstWithOri;
+  latestStatePose = latestKine.toVector(kine::Kinematics::Flags::pose);
 
-  // we apply the previously computed transformation to the new estimation of the past pose
-  kine::Kinematics & latestKineWithOriMeas = getCurrentIter().currentPose_;
-  latestKineWithOriMeas = poseTransfo * bufferedIter.currentPose_;
+  setCurrentState(latestState);
+  getCurrentIter().updatedState_ = latestState;
 
-  latestStatePose = latestKineWithOriMeas.toVector(kine::Kinematics::Flags::pose);
-
-  return replayedEstimation;
+  return latestState;
 }
 
 } // namespace stateObservation

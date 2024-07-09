@@ -34,9 +34,11 @@ protected:
   struct IterInfos
   {
     IterInfos(double alpha, double beta, double rho, double dt) : dt_(dt), alpha_(alpha), beta_(beta), rho_(rho) {}
-    // add an orientation measurement to the correction
+
+    // add an orientation measurement of the IMU's frame in the world frame to the correction
     void addOrientationMeasurement(const Matrix3 & meas, double gain);
 
+    // add the correction coming from a contact position to the estimation
     void addContactPosMeasurement(const Vector3 & posMeasurement,
                                   const Vector3 & imuContactPos,
                                   double gainDelta,
@@ -58,18 +60,18 @@ protected:
       y_k_ = y_k;
     }
 
-    int iter_ = 0;
-
     /// Sampling time
     double dt_;
     /// The parameters of the estimator
     double alpha_, beta_, rho_;
-    /// Estimated pose of the IMU
-    kine::Kinematics currentPose_;
+    /// Estimated pose of the IMU at the beginning of the iteration
+    kine::Kinematics initPose_;
     // state at time k-1
     ObserverBase::StateVector initState_;
     // updated state (at the end of the iteration)
     ObserverBase::StateVector updatedState_;
+    /// Estimated pose of the IMU at the end of the iteration
+    kine::Kinematics updatedPose_;
     // measurements at time k
     ObserverBase::MeasureVector y_k_;
 
@@ -82,9 +84,9 @@ protected:
     // correction of the orientation coming from the contact positions, passed as a local angular velocity.
     Vector3 oriCorrFromContactPos_ = Vector3::Zero();
 
-    TimeIndex k_est_ = 0.0; // time index of the last estimation
-    TimeIndex k_data_ = 0.0; // time index of the current measurements
-    TimeIndex k_contacts_ = 0.0; // time index of the contact measurements
+    TimeIndex k_est_ = 0; // time index of the last estimation
+    TimeIndex k_data_ = 0; // time index of the current measurements
+    TimeIndex k_contacts_ = 0; // time index of the contact measurements
   };
 
 private:
@@ -157,17 +159,12 @@ public:
   /// @param gain weight of the correction
   StateVector replayIterationWithDelayedOri(unsigned long delay, const Matrix3 & meas, double gain);
 
-  /// @brief replays a previous iteration with an additional orientation measurement.
-  /// @details this version also computes the transformation coming from the correction, that can be applied on other
-  /// frames.
+  /// @brief replays a previous iteration with an additional orientation measurement and applies the obtained correction
+  /// to the current state.
   /// @param delay delay between the iteration receiving the measurement and the current one.
   /// @param meas measured orientation of the IMU's frame in the world
   /// @param gain weight of the correction
-  /// @param poseTransfo // transformation coming from the orientation correction
-  StateVector replayIterationWithDelayedOri(unsigned long delay,
-                                            const Matrix3 & meas,
-                                            double gain,
-                                            kine::Kinematics & poseTransfo);
+  StateVector replayIterationsWithDelayedOri(unsigned long delay, const Matrix3 & meas, double gain);
 
   Vector3 getVirtualLocalVelocityMeasurement()
   {
