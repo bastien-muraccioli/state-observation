@@ -1451,7 +1451,7 @@ int testLocalKinematics(int errcode)
   return 0;
 }
 
-int testSE3_Integration(int errcode)
+int testSE3_Integration_vs_euler(int errcode)
 {
   double threshold = 1e-4;
   double err = 0;
@@ -1466,43 +1466,45 @@ int testSE3_Integration(int errcode)
       LocalKinematics k;
       Vector3 pos = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>();
       kine::Orientation ori = kine::Orientation::randomRotation();
-      Vector3 vl = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>();
-      Vector3 omega_l = tools::ProbabilityLawSimulation::getGaussianMatrix<Vector3>();
+      Vector3 linvel = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>();
+      Vector3 angvel = tools::ProbabilityLawSimulation::getGaussianMatrix<Vector3>();
+      Vector3 linacc = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>();
+      Vector3 angacc = tools::ProbabilityLawSimulation::getGaussianMatrix<Vector3>();
 
       pos *= i;
-      vl *= i;
-      omega_l *= j;
+      linvel *= i;
+      angvel *= j;
+      linacc *= i;
+      angacc *= j;
 
       k.position = pos;
       k.orientation = ori;
+      k.linVel = linvel;
+      k.angVel = angvel;
+      k.linAcc = linacc;
+      k.angAcc = angacc;
 
-      LocalKinematics se3_IntegartionResult(k);
-      LocalKinematics euler_IntegartionResult(k);
-      euler_IntegartionResult.linVel = vl;
-      euler_IntegartionResult.angVel = omega_l;
+      LocalKinematics se3_IntegrationResult(k);
+      LocalKinematics euler_IntegrationResult(k);
 
-      Kinematics test(se3_IntegartionResult);
+      Kinematics testGlobKine(se3_IntegrationResult);
 
-      se3_IntegartionResult.SE3_integration(vl * dt, omega_l * dt);
-      test.SE3_integration(vl * dt, omega_l * dt);
-      LocalKinematics test2(test);
+      se3_IntegrationResult.SE3_integration(dt);
+      testGlobKine.SE3_integration(linvel * dt, angvel * dt);
+      LocalKinematics test2(testGlobKine);
 
       for(int l = 0; l < steps; l++)
       {
-        euler_IntegartionResult.integrate(dt / steps);
-        euler_IntegartionResult.linVel = vl;
-        euler_IntegartionResult.angVel = omega_l;
+        euler_IntegrationResult.integrate(dt / steps);
       }
-
-      LocalKinematics diff = se3_IntegartionResult * euler_IntegartionResult.getInverse();
-
-      if(diff.position.isSet())
+      LocalKinematics diff_se3_euler = se3_IntegrationResult * euler_IntegrationResult.getInverse();
+      if(diff_se3_euler.position.isSet())
       {
-        err += diff.position().squaredNorm();
+        err += diff_se3_euler.position().squaredNorm();
       }
-      if(diff.orientation.isSet())
+      if(diff_se3_euler.orientation.isSet())
       {
-        err += diff.orientation.toRotationVector().squaredNorm();
+        err += diff_se3_euler.orientation.toRotationVector().squaredNorm();
       }
     }
   }
@@ -1581,7 +1583,7 @@ int main()
     std::cout << "LocalKinematics test succeeded" << std::endl;
   }
 
-  if((returnVal = testSE3_Integration(++errorcode))) /// it is not an equality check
+  if((returnVal = testSE3_Integration_vs_euler(++errorcode))) /// it is not an equality check
   {
     std::cout << "SE3 integration test failed, code :" << std::endl;
     return returnVal;
