@@ -15,7 +15,7 @@ double dt_ = 0.005;
 
 double lin_stiffness_ = (double)rand() / RAND_MAX * 1e5;
 double lin_damping_ = (double)rand() / RAND_MAX * 5 * 1e1;
-double ang_stiffness_ = (double)rand() / RAND_MAX * 1e5;
+double ang_stiffness_ = (double)rand() / RAND_MAX * 1e3;
 double ang_damping_ = (double)rand() / RAND_MAX * 5 * 1e1;
 
 Matrix3 K1_ = lin_stiffness_ * Matrix3::Identity();
@@ -25,7 +25,7 @@ Matrix3 K4_ = ang_damping_ * Matrix3::Identity();
 
 double lin_stiffness_2_ = (double)rand() / RAND_MAX * 1e5;
 double lin_damping_2_ = (double)rand() / RAND_MAX * 5 * 1e1;
-double ang_stiffness_2_ = (double)rand() / RAND_MAX * 1e5;
+double ang_stiffness_2_ = (double)rand() / RAND_MAX * 1e3;
 double ang_damping_2_ = (double)rand() / RAND_MAX * 5 * 1e1;
 
 Matrix3 K1_2_ = lin_stiffness_2_ * Matrix3::Identity();
@@ -40,7 +40,7 @@ Vector3 com_dd_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() /
 Vector3 position_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
 kine::Orientation ori_;
 Vector3 linvel_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
-Vector3 angvel_ = tools::ProbabilityLawSimulation::getGaussianMatrix<Vector3>() / 10 * 100;
+Vector3 angvel_ = tools::ProbabilityLawSimulation::getGaussianMatrix<Vector3>() / 10;
 
 Vector3 gyroBias1_ = tools::ProbabilityLawSimulation::getGaussianMatrix<Vector3>() / 10;
 Vector3 gyroBias2_ = tools::ProbabilityLawSimulation::getGaussianMatrix<Vector3>() / 10;
@@ -54,7 +54,7 @@ Vector3 centroidContactPos1_ = tools::ProbabilityLawSimulation::getUniformMatrix
 kine::Orientation centroidContactOri1_;
 Vector3 centroidContactLinVel1_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
 Vector3 centroidContactAngVel1_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
-Vector3 contactForces1_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() * 1000;
+Vector3 contactForces1_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() * 100;
 Vector3 contactTorques1_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() * 10;
 
 Vector3 worldContactPos2_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
