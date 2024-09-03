@@ -139,6 +139,10 @@ inline Matrix3 skewSymmetric2(const Vector3 & v, Matrix3 & R);
 /// transform a 3d vector into a squared skew symmetric 3x3 matrix
 inline Matrix3 skewSymmetric2(const Vector3 & v);
 
+/// computes the V matrix used for the integration of the local linear velocity into the local position using SE(3)
+/// formalism. Allows to take the evolution of the orientation over dt into account.
+inline Matrix3 v_matrix(const Vector3 & rotVec);
+
 /// transforms a homogeneous matrix into 6d vector (position theta mu)
 inline Vector6 homogeneousMatrixToVector6(const Matrix4 & M);
 
@@ -740,7 +744,7 @@ struct LocalKinematics : public internal::KinematicsInternal<LocalKinematics>
   /// @param vl_dt local linear velocity times dt
   /// @param omega_l_dt local angular velocity times dt
   /// @return const Kinematics &
-  inline const LocalKinematics & SE3_integration(const Vector3 & vl_dt, const Vector3 & omega_l_dt);
+  inline const LocalKinematics & SE3_integration(double dt);
 
   /// @brief updates the current local kinematics (k) with the new ones (k+1).
   /// @details flags allow to chose what variables must be contained in the new local kinematics. If a variable is not
