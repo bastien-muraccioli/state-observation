@@ -1652,8 +1652,19 @@ Matrix KineticsObserver::computeAMatrix()
 
   Matrix A = Matrix::Zero(stateTangentSize_, stateTangentSize_);
 
+  LocalKinematics & stateKine_k = worldCentroidStateKinematics_;
+
   double dt2_2 = 0.5 * pow(dt_, 2);
-  Matrix3 dt2_2_Sp = dt2_2 * kine::skewSymmetric(worldCentroidStateKinematics_.position());
+
+  Vector3 rotVec = dt_ * stateKine_k.angVel() + dt2_2 * stateKine_k.angAcc();
+  Vector3 transVec = dt_ * stateKine_k.linVel() + dt2_2 * stateKine_k.linAcc();
+
+  double sq_norm_rotVec = rotVec.squaredNorm();
+  double norm_rotVec = rotVec.norm();
+  double sin_rotVec_2 = sin(0.5 * norm_rotVec);
+  double sin_rotVec = sin(norm_rotVec);
+  double cos_rotVec = cos(norm_rotVec);
+  Matrix3 v_rotVec = kine::v_matrix(-rotVec);
 
   // Jacobians of the angular acceleration
   Matrix3 I_inv = I_().inverse();
@@ -1661,15 +1672,13 @@ Matrix KineticsObserver::computeAMatrix()
   // centroid's frame.
   Matrix3 J_omegadot_ext_torque = I_inv;
 
-  Matrix3 J_omegadot_omega =
-      I_inv
-      * (kine::skewSymmetric(I_() * worldCentroidStateKinematics_.angVel()) - Id_()
-         - kine::skewSymmetric(worldCentroidStateKinematics_.angVel()) * I_() + kine::skewSymmetric(sigma_()));
+  Matrix3 J_omegadot_omega = I_inv
+                             * (kine::skewSymmetric(I_() * stateKine_k.angVel()) - Id_()
+                                - kine::skewSymmetric(stateKine_k.angVel()) * I_() + kine::skewSymmetric(sigma_()));
 
   // Jacobians of the linear acceleration
   Matrix3 J_al_R =
-      -cst::gravityConstant
-      * (worldCentroidStateKinematics_.orientation.toMatrix3().transpose() * kine::skewSymmetric(Vector3(0, 0, 1)));
+      -cst::gravityConstant * (stateKine_k.orientation.toMatrix3().transpose() * kine::skewSymmetric(Vector3(0, 0, 1)));
 
   //// creation of the variables linked to the unmodeled wrench. Initialized after if required. ////
 
@@ -1689,26 +1698,50 @@ Matrix KineticsObserver::computeAMatrix()
   //// Jacobian matrices of the local position's state transition ////
 
   // Jacobians of the position's state-transition wrt to itself
-  Matrix3 J_pl_pl = Matrix::Identity(sizePosTangent, sizePosTangent)
-                    - dt_ * kine::skewSymmetric(worldCentroidStateKinematics_.angVel())
-                    + dt2_2
-                          * (kine::skewSymmetric2(worldCentroidStateKinematics_.angVel())
-                             - kine::skewSymmetric(worldCentroidStateKinematics_.angAcc()));
+  Matrix3 J_pl_pl = kine::rotationVectorToRotationMatrix(-rotVec);
 
   // jacobian matrix of the local position's state-transition wrt the orientation
-  Matrix3 J_pl_R = dt2_2 * J_al_R;
+  Matrix3 J_pl_R = dt2_2 * v_rotVec * J_al_R;
   // jacobian matrix of the local position's state-transition wrt the linear velocity
-  Matrix3 J_pl_vl = dt_ * Matrix::Identity(sizePosTangent, sizeLinVelTangent)
-                    - 2.0 * dt2_2 * kine::skewSymmetric(worldCentroidStateKinematics_.angVel());
-  // jacobian matrix of the local position's state-transition wrt the angular velocity
-  Matrix3 J_pl_omega = kine::skewSymmetric(dt_ * worldCentroidStateKinematics_.position()
-                                           + 2.0 * dt2_2 * worldCentroidStateKinematics_.linVel())
-                       + dt2_2
-                             * (kine::skewSymmetric(worldCentroidStateKinematics_.position()) * J_omegadot_omega
-                                + kine::skewSymmetric(kine::skewSymmetric(worldCentroidStateKinematics_.position())
-                                                      * worldCentroidStateKinematics_.angVel())
-                                - kine::skewSymmetric(worldCentroidStateKinematics_.angVel())
-                                      * kine::skewSymmetric(worldCentroidStateKinematics_.position()));
+  Matrix3 J_pl_vl = dt_ * v_rotVec;
+  // jacobian matrix of the local position's state-transition wrt the linear acceleration
+  Matrix3 J_pl_al = dt2_2 * v_rotVec;
+
+  auto compute_J_rotated_rotvec = [norm_rotVec, cos_rotVec, sin_rotVec,
+                                   sq_norm_rotVec](const Vector3 & rotVec, const Vector3 & rotated) -> Matrix3
+  {
+    Matrix3 jacob =
+        (sin_rotVec / pow(norm_rotVec, 3) - cos_rotVec / sq_norm_rotVec) * rotated.cross(rotVec) * rotVec.transpose()
+        - sin_rotVec / norm_rotVec * kine::skewSymmetric(rotated)
+        - sin_rotVec / pow(norm_rotVec, 3) * rotVec.cross(rotated.cross(rotVec)) * rotVec.transpose()
+        - 2 / pow(norm_rotVec, 4) * (1 - cos_rotVec) * (rotVec * rotVec.transpose()) * rotated * rotVec.transpose()
+        + (1 - cos_rotVec) / sq_norm_rotVec
+              * ((rotVec.transpose() * rotated) * Matrix3::Identity() + rotVec * rotated.transpose());
+
+    return jacob;
+  };
+
+  auto compute_J_rotated_V = [norm_rotVec, sq_norm_rotVec,
+                              &compute_J_rotated_rotvec](const Vector3 & rotVec, const Vector3 & rotated) -> Matrix3
+  {
+    Vector3 Rv = kine::rotationVectorToRotationMatrix(rotVec) * rotated;
+
+    Matrix3 jacob = -2 / pow(norm_rotVec, 4)
+                        * (rotVec * rotVec.transpose() * rotated + rotVec.cross(rotated) - rotVec.cross(Rv))
+                        * rotVec.transpose()
+                    + 1 / sq_norm_rotVec
+                          * (rotVec.transpose() * rotated * Matrix3::Identity() + rotVec * rotated.transpose()
+                             - kine::skewSymmetric(rotated) + kine::skewSymmetric(Rv)
+                             - kine::skewSymmetric(rotVec) * compute_J_rotated_rotvec(rotVec, rotated));
+
+    return jacob;
+  };
+
+  Matrix3 J_pl_rotVec =
+      compute_J_rotated_rotvec(-rotVec, stateKine_k.position()) + compute_J_rotated_V(-rotVec, transVec);
+  Matrix3 J_pl_omega = -dt_ * J_pl_rotVec - dt2_2 * J_pl_rotVec * J_omegadot_omega;
+
+  Matrix3 J_pl_omega_dot = -dt2_2 * J_pl_rotVec;
 
   A.block<sizePosTangent, sizePosTangent>(posIndexTangent(), posIndexTangent()) = J_pl_pl;
   A.block<sizePosTangent, sizeOriTangent>(posIndexTangent(), oriIndexTangent()) = J_pl_R;
@@ -1717,37 +1750,30 @@ Matrix KineticsObserver::computeAMatrix()
 
   //// Jacobian matrices of the orientation's state transition ////
 
-  Vector delta = dt_ * worldCentroidStateKinematics_.angVel() + dt2_2 * worldCentroidStateKinematics_.angAcc();
-  double sq_norm_delta = delta.squaredNorm();
-  double norm_delta = delta.norm();
-  double sin_delta_2 = sin(0.5 * norm_delta);
-
-  // jacobian matrix of the orientation's state-transition wrt delta
-  Matrix3 J_R_delta;
-  if(norm_delta > cst::epsilonAngle)
+  // jacobian matrix of the orientation's state-transition wrt rotVec
+  Matrix3 J_R_rotVec;
+  if(norm_rotVec > cst::epsilonAngle)
   {
-    J_R_delta.noalias() = 2.0 / norm_delta
-                          * (((norm_delta - 2.0 * sin_delta_2) / (2.0 * sq_norm_delta))
-                                 * (worldCentroidStateKinematics_.orientation.toMatrix3() * delta * delta.transpose())
-                             + sin_delta_2
-                                   * (worldCentroidStateKinematics_.orientation.toMatrix3()
-                                      * kine::rotationVectorToRotationMatrix(0.5 * delta)));
+    J_R_rotVec.noalias() =
+        2.0 / norm_rotVec
+        * (((norm_rotVec - 2.0 * sin_rotVec_2) / (2.0 * sq_norm_rotVec))
+               * (stateKine_k.orientation.toMatrix3() * rotVec * rotVec.transpose())
+           + sin_rotVec_2 * (stateKine_k.orientation.toMatrix3() * kine::rotationVectorToRotationMatrix(0.5 * rotVec)));
   }
   else
   {
-    J_R_delta.noalias() =
-        worldCentroidStateKinematics_.orientation.toMatrix3() * kine::rotationVectorToRotationMatrix(0.5 * delta);
+    J_R_rotVec.noalias() = stateKine_k.orientation.toMatrix3() * kine::rotationVectorToRotationMatrix(0.5 * rotVec);
   }
 
   // R wrt omegadot. The intermediate jacobian used to compute the ones with respect to the angular velocity and
   // acceleration
-  Matrix3 J_R_omegadot = J_R_delta * dt2_2; // used in other Jacobians
+  Matrix3 J_R_omegadot = J_R_rotVec * dt2_2; // used in other Jacobians
 
   // jacobian matrix of the orientation's state-transition wrt itself
   Matrix3 J_R_R = Matrix::Identity(sizeOriTangent, sizeOriTangent);
   // jacobian matrix of the orientation's state-transition wrt the local angular velocity
   Matrix3 J_R_omega =
-      J_R_delta * (dt_ * Matrix::Identity(sizeAngVelTangent, sizeAngVelTangent) + dt2_2 * J_omegadot_omega);
+      J_R_rotVec * (dt_ * Matrix::Identity(sizeAngVelTangent, sizeAngVelTangent) + dt2_2 * J_omegadot_omega);
 
   A.block<sizeOriTangent, sizeOriTangent>(oriIndexTangent(), oriIndexTangent()) = J_R_R;
   A.block<sizeOriTangent, sizeAngVelTangent>(oriIndexTangent(), angVelIndexTangent()) = J_R_omega;
@@ -1757,10 +1783,10 @@ Matrix KineticsObserver::computeAMatrix()
   // jacobian matrix of the local linear velocity's state-transition wrt the orientation
   Matrix3 J_vl_R = dt_ * J_al_R;
   // jacobian matrix of the local linear velocity's state-transition wrt itself
-  Matrix3 J_vl_vl = Matrix::Identity(sizeLinVelTangent, sizeLinVelTangent)
-                    - dt_ * kine::skewSymmetric(worldCentroidStateKinematics_.angVel());
+  Matrix3 J_vl_vl =
+      Matrix::Identity(sizeLinVelTangent, sizeLinVelTangent) - dt_ * kine::skewSymmetric(stateKine_k.angVel());
   // jacobian matrix of the local linear velocity's state-transition wrt the local angular velocity
-  Matrix3 J_vl_omega = dt_ * kine::skewSymmetric(worldCentroidStateKinematics_.linVel());
+  Matrix3 J_vl_omega = dt_ * kine::skewSymmetric(stateKine_k.linVel());
 
   A.block<sizeLinVelTangent, sizeOriTangent>(linVelIndexTangent(), oriIndexTangent()) = J_vl_R;
   A.block<sizeLinVelTangent, sizeLinVelTangent>(linVelIndexTangent(), linVelIndexTangent()) = J_vl_vl;
@@ -1792,13 +1818,13 @@ Matrix KineticsObserver::computeAMatrix()
     // jacobian matrix of the linear acceleration wrt the external force
     J_al_ext_force = Matrix::Identity(sizeLinAccTangent, sizeTorqueTangent) / mass_;
     // jacobian matrix of the local position's state-transition wrt the external force
-    J_pl_ext_force = dt2_2 / mass_ * Matrix::Identity(sizePosTangent, sizeForceTangent);
+    J_pl_ext_force = dt2_2 / mass_ * v_rotVec;
     // jacobian matrix of the local linear velocity's state-transition wrt the external force
     J_vl_ext_force = dt_ * J_al_ext_force;
     // jacobian matrix of the external torque's state-transition wrt itself
     Matrix3 J_ext_torque_ext_torque = Matrix::Identity(sizeTorqueTangent, sizeTorqueTangent);
     // jacobian matrix of the local position's state-transition wrt the external torque
-    J_pl_ext_torque = dt2_2_Sp * J_omegadot_ext_torque;
+    J_pl_ext_torque = J_pl_omega_dot * J_omegadot_ext_torque;
     // jacobian matrix of the orientation's state-transition wrt the external torque
     J_R_ext_torque = J_R_omegadot * J_omegadot_ext_torque;
     // jacobian matrix of the local angular velocity's state-transition wrt the external torque
@@ -1848,9 +1874,9 @@ Matrix KineticsObserver::computeAMatrix()
       //// Jacobian matrices of the contact kinematics state transition ////
 
       // jacobian matrix of the local position's state-transition wrt the contact force
-      Matrix3 J_pl_contactForce = dt2_2_Sp * J_omegadot_Fcis + dt2_2 * J_linAcc_Fcis;
+      Matrix3 J_pl_contactForce = J_pl_omega_dot * J_omegadot_Fcis + J_pl_al * J_linAcc_Fcis;
       // jacobian matrix of the local position's state-transition wrt the contact torque
-      Matrix3 J_pl_contactTorque = dt2_2_Sp * J_omegadot_Tcis;
+      Matrix3 J_pl_contactTorque = J_pl_omega_dot * J_omegadot_Tcis;
       // jacobian matrix of the orientatiob's state-transition wrt the contact force
       Matrix3 J_R_contactForce = J_R_omegadot * J_omegadot_Fcis;
       // jacobian matrix of the orientation's state-transition wrt the contact torque
@@ -2494,7 +2520,11 @@ Vector KineticsObserver::stateDynamics(const Vector & xInput, const Vector & /*u
   computeLocalAccelerations_(worldCentroidStateKinematics, initTotalCentroidForce_, initTotalCentroidTorque_, linacc,
                              angacc);
 
-  worldCentroidStateKinematics.integrate(dt_);
+  LocalKinematics test = worldCentroidStateKinematics;
+  // worldCentroidStateKinematics.SE3_integration(dt_);
+
+  test.integrate(dt_);
+  worldCentroidStateKinematics.SE3_integration(dt_);
 
   x.segment<sizeStateKine>(kineIndex()) = worldCentroidStateKinematics.toVector(flagsStateKine);
 
