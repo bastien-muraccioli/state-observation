@@ -314,9 +314,9 @@ inline Matrix3 skewSymmetric2(const Vector3 & v)
 /// formalism. Allows to take the evolution of the orientation over dt into account.
 inline Matrix3 v_matrix(const Vector3 & rotVec)
 {
-  return Matrix3::Identity()
-         + skewSymmetric(rotVec) / rotVec.squaredNorm()
-               * (Matrix3::Identity() + skewSymmetric(rotVec) - rotationVectorToRotationMatrix(rotVec));
+  double rotVec_norm = rotVec.norm();
+  return Matrix3::Identity() + (1 - cos(rotVec_norm)) / rotVec.squaredNorm() * skewSymmetric(rotVec)
+         + (rotVec_norm - sin(rotVec_norm)) / pow(rotVec_norm, 3) * skewSymmetric2(rotVec);
 }
 
 /// transforms a homogeneous matrix into 6d vector (position theta mu)
