@@ -229,11 +229,11 @@ ObserverBase::StateVector VanytEstimator::replayIterationsWithDelayedOri(unsigne
 
   kine::Kinematics & latestKine = getCurrentIter().updatedPose_;
 
-  kine::Kinematics deltaKine = latestKine * bufferedIter.updatedPose_.getInverse();
+  kine::Kinematics deltaKine = bufferedIter.updatedPose_.getInverse() * latestKine;
 
   // we add the delayed orientation measurement to the inputs of the buffered iteration and recompute the state update.
   replayIterationWithDelayedOri(delay, meas, gain);
-  latestKine = deltaKine * bufferedIter.updatedPose_;
+  latestKine = bufferedIter.updatedPose_ * deltaKine;
 
   latestStatePose = latestKine.toVector(kine::Kinematics::Flags::pose);
 
