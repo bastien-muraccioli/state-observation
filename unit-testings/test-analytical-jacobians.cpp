@@ -13,20 +13,20 @@ namespace stateObservation
 
 double dt_ = 0.005;
 
-double lin_stiffness_ = (double)rand() / RAND_MAX * 1e5;
+double lin_stiffness_ = (double)rand() / RAND_MAX * 1e4;
 double lin_damping_ = (double)rand() / RAND_MAX * 5 * 1e1;
 double ang_stiffness_ = (double)rand() / RAND_MAX * 1e3;
-double ang_damping_ = (double)rand() / RAND_MAX * 5 * 1e1;
+double ang_damping_ = (double)rand() / RAND_MAX * 1e1;
 
 Matrix3 K1_ = lin_stiffness_ * Matrix3::Identity();
 Matrix3 K2_ = lin_damping_ * Matrix3::Identity();
 Matrix3 K3_ = ang_stiffness_ * Matrix3::Identity();
 Matrix3 K4_ = ang_damping_ * Matrix3::Identity();
 
-double lin_stiffness_2_ = (double)rand() / RAND_MAX * 1e5;
+double lin_stiffness_2_ = (double)rand() / RAND_MAX * 1e4;
 double lin_damping_2_ = (double)rand() / RAND_MAX * 5 * 1e1;
 double ang_stiffness_2_ = (double)rand() / RAND_MAX * 1e3;
-double ang_damping_2_ = (double)rand() / RAND_MAX * 5 * 1e1;
+double ang_damping_2_ = (double)rand() / RAND_MAX * 1e1;
 
 Matrix3 K1_2_ = lin_stiffness_2_ * Matrix3::Identity();
 Matrix3 K2_2_ = lin_damping_2_ * Matrix3::Identity();
