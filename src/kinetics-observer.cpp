@@ -180,6 +180,22 @@ KineticsObserver::KineticsObserver(unsigned maxContacts, unsigned maxNumberOfIMU
   resetProcessCovarianceMat();
 
   worldCentroidStateVectorDx_.setConstant(1e-6);
+
+  for(unsigned nbContacts = 2; nbContacts <= maxContacts_; nbContacts++)
+  {
+    Eigen::MatrixXd one_t(3, nbContacts * 3);
+
+    for(unsigned i = 0; i < nbContacts; i++)
+    {
+      one_t.block(0, i * 3, 3, 3) = Eigen::Matrix3d::Identity();
+    }
+
+    Eigen::MatrixXd one_t_pinv = (1.0 / nbContacts) * one_t.transpose();
+
+    Eigen::MatrixXd M = Eigen::MatrixXd::Identity(nbContacts * 3, nbContacts * 3) - one_t_pinv * one_t;
+
+    m_matrices_.push_back(M);
+  }
 }
 
 KineticsObserver::~KineticsObserver() {}
@@ -334,11 +350,40 @@ void KineticsObserver::updateMeasurements()
   ekf_.setR(measurementCovMatrix_);
 }
 
+void KineticsObserver::setContactProcessCovMat(Index contactNbr,
+                                               const Matrix3 * restPosProcessCov,
+                                               const Matrix3 * restOriProcessCov,
+                                               const Matrix3 * forceProcessCov,
+                                               const Matrix3 * torqueProcessCov)
+{
+  Matrix processCovMat = ekf_.getQ();
+  if(restPosProcessCov != nullptr)
+  {
+    // no need to change Q here as it will be recomputed in updateContactPosProcessCovariance()
+    contactRestPosProcessChanged_ = true;
+    contacts_[contactNbr].restPosProcessCovMat = *restPosProcessCov;
+  }
+  if(restOriProcessCov != nullptr)
+  {
+    setBlockStateCovariance<sizeOriTangent>(processCovMat, *restOriProcessCov, contactOriIndexTangent(contactNbr));
+  }
+  if(forceProcessCov != nullptr)
+  {
+    setBlockStateCovariance<sizeForceTangent>(processCovMat, *forceProcessCov, contactForceIndexTangent(contactNbr));
+  }
+  if(torqueProcessCov != nullptr)
+  {
+    setBlockStateCovariance<sizeTorqueTangent>(processCovMat, *torqueProcessCov, contactTorqueIndexTangent(contactNbr));
+  }
+  ekf_.setQ(processCovMat);
+}
+
 const Vector & KineticsObserver::update()
 {
   if(k_est_ != k_data_)
   {
     updateMeasurements();
+    updateContactPosProcessCovariance();
 
     ekf_.updateStateAndMeasurementPrediction();
 
@@ -839,6 +884,69 @@ void KineticsObserver::setContactWrenchSensorDefaultCovarianceMatrix(const Matri
   contactWrenchSensorCovMatDefault_ = wrenchSensorCovMat;
 }
 
+void KineticsObserver::updateContactPosProcessCovariance()
+{
+  if((!contactRestPosProcessChanged_ && !contactsChanged_) || getNumberOfSetContacts() == 0)
+  {
+    return;
+  }
+
+  Matrix processCovMat = ekf_.getQ();
+
+  // exceptional case if there is only one contact!
+  if(getNumberOfSetContacts() == 1)
+  {
+    for(auto & contact : contacts_)
+    {
+      if(contact.isSet)
+      {
+        processCovMat.block(contact.stateIndexTangent, contact.stateIndexTangent, sizePosTangent, sizePosTangent) =
+            contact.restPosProcessCovMat;
+        ekf_.setQ(processCovMat);
+        return;
+      }
+    }
+  }
+
+  Eigen::MatrixXd & M = m_matrices_.at(getNumberOfSetContacts() - 2);
+
+  Eigen::MatrixXd cov_v = Eigen::MatrixXd::Zero(getNumberOfSetContacts() * 3, getNumberOfSetContacts() * 3);
+
+  int i = 0;
+  for(auto & contact : contacts_)
+  {
+    if(contact.isSet)
+    {
+      cov_v.block(i * 3, i * 3, 3, 3) = contact.restPosProcessCovMat;
+      i++;
+    }
+  }
+
+  // cov(Mv) = M cov(v) M'. But here M is symmetric
+  Eigen::MatrixXd covMv = M * cov_v * M;
+
+  i = 0;
+  for(auto & contact1 : contacts_)
+  {
+    if(contact1.isSet)
+    {
+      int j = 0;
+      for(auto & contact2 : contacts_)
+      {
+        if(contact2.isSet)
+        {
+          processCovMat.block(contact1.stateIndexTangent, contact2.stateIndexTangent, sizePosTangent, sizePosTangent) =
+              covMv.block(i * 3, j * 3, 3, 3);
+          j++;
+        }
+      }
+      i++;
+    }
+  }
+
+  ekf_.setQ(processCovMat);
+}
+
 void KineticsObserver::updateContactWithNoSensor(const Kinematics & userContactKine, unsigned contactNumber)
 {
   /// ensure the measuements are labeled with the good time stamp
@@ -1076,6 +1184,8 @@ Index KineticsObserver::addContact(const Kinematics & worldContactRefKine,
   BOOST_ASSERT(!contacts_[contactNumber].isSet
                && "The contact already exists, please remove it before adding it again");
 
+  contactsChanged_ = true;
+
   Contact & contact = contacts_[static_cast<size_t>(contactNumber)]; /// reference
 
   contact.isSet = true; /// set the contacts
@@ -1134,6 +1244,7 @@ Index KineticsObserver::addContact(const Kinematics & worldContactRefKine,
   /// Sets the process cov mat
   Matrix processCovMat = ekf_.getQ();
   setBlockStateCovariance<sizeContactTangent>(processCovMat, processCovarianceMatrix, contact.stateIndexTangent);
+  contact.restPosProcessCovMat = processCovarianceMatrix.block<3, 3>(0, 0);
   ekf_.setQ(processCovMat);
 
   return contactNumber;
@@ -1156,6 +1267,7 @@ void KineticsObserver::removeContact(Index contactNbr)
   BOOST_ASSERT(contacts_[contactNbr].isSet && "Tried to remove a non-existing contact.");
   auto & c = contacts_[static_cast<size_t>(contactNbr)];
   c.isSet = false;
+  contactsChanged_ = true;
   if(c.withRealSensor)
   {
     c.withRealSensor = false;
@@ -1335,6 +1447,11 @@ void KineticsObserver::setUnmodeledWrenchProcessCovMat(const Matrix6 & processCo
 
 void KineticsObserver::setContactProcessCovMat(Index contactNbr, const Matrix12 & contactCovMat)
 {
+  if((contactCovMat.block(0, 0, sizePosTangent, contactCovMat.cols()).array() != 0.0).any())
+  {
+    contactRestPosProcessChanged_ = true;
+  }
+
   Matrix P = ekf_.getProcessCovariance();
   setBlockStateCovariance<sizeContactTangent>(P, contactCovMat, contactIndexTangent(contactNbr));
   ekf_.setProcessCovariance(P);
@@ -1601,6 +1718,8 @@ void KineticsObserver::startNewIteration_()
     }
     additionalForce_.setZero();
     additionalTorque_.setZero();
+    contactsChanged_ = false;
+    contactRestPosProcessChanged_ = false;
   }
 }
 

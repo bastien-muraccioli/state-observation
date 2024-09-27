@@ -465,6 +465,12 @@ public:
   /// @return const Vector& The state vector
   const Vector & update();
 
+  /// @brief updates the process covariance associated to the contact rest positions.
+  /// @details modifies the process covariance matrix Q such that the process noise on the rest contact positions allows
+  /// them to move, but their average position remains unchanged. This allows for the relaxation of internal forces but
+  /// prevents drifting.
+  void updateContactPosProcessCovariance();
+
   /// @brief Returns the predicted Kinematics object of the centroid in the world frame at the time of the measurement
   /// predictions
 
@@ -710,9 +716,22 @@ public:
 
   /// @brief Set the Contact Process Covariance Matrix
   ///
-  /// @param contactNbr
-  /// @param contactCovMat the contact number id
+  /// @param contactNbr the contact number id
+  /// @param contactCovMat the new process covariance matrix
   void setContactProcessCovMat(Index contactNbr, const Matrix12 & contactCovMat);
+
+  /// @brief Set the Contact Process Covariance Matrix
+  /// @details This version allows to set independently the part associated to each state variable of the contact.
+  /// @param contactNbr id of the contact
+  /// @param restPosProcessCov the new process covariance matrix for the rest position
+  /// @param restOriProcessCov the new process covariance matrix for the rest orientation
+  /// @param forceProcessCov the new process covariance matrix for the contact's force
+  /// @param torqueProcessCov the new process covariance matrix for the contact's torque
+  void setContactProcessCovMat(Index contactNbr,
+                               const Matrix3 * restPosProcessCov = nullptr,
+                               const Matrix3 * restOriProcessCov = nullptr,
+                               const Matrix3 * forceProcessCov = nullptr,
+                               const Matrix3 * torqueProcessCov = nullptr);
 
   /// Resets the covariance matrices to their original values
   void resetStateCovarianceMat();
@@ -1069,6 +1088,9 @@ protected:
     Kinematics centroidContactKine; /// Describes the kinematics of the contact point in the centroid's frame.
     CheckedMatrix6 sensorCovMatrix; /// measurement covariance matrix of the wrench sensor attached to the contact.
 
+    // process covariance associated to the rest position of the contact.
+    Matrix3 restPosProcessCovMat;
+
     Matrix3 linearStiffness; /// linear stiffness associated to the contact, used in the visco-elastic model
     Matrix3 linearDamping; /// linear damping associated to the contact, used in the visco-elastic model
     Matrix3 angularStiffness; /// angular stiffness associated to the contact, used in the visco-elastic model
@@ -1392,6 +1414,11 @@ protected:
   Index numberOfContactRealSensors_;
   Index currentIMUSensorNumber_;
 
+  // indicates if a contact has been added or removed since the last iteration
+  bool contactsChanged_;
+  // indicates if a contact's process covariance on the rest pose has been modified since the last iteration
+  bool contactRestPosProcessChanged_;
+
   /// function to call before adding any measurement
   /// detects if there is a new estimation beginning and then
   /// calls the reset of the iteration
@@ -1565,6 +1592,12 @@ protected:
 
   Matrix12 stateKinematicsInitCovMat_;
   Matrix12 stateKinematicsProcessCovMat_;
+
+  // contains the M matrices for each possible number of contacts. The M matrix allows to associate a process covariance
+  // to the contact rest position while ensuring that their average position is associated with a zero covariance. In a
+  // simpler way, it allows the contacts rest position to move slightly over time, but we don't allow their average to
+  // move, thus preventing drift.
+  std::vector<Eigen::MatrixXd> m_matrices_;
 
   /// default derivation steps
   static const double defaultdx;

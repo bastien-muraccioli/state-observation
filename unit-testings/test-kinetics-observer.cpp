@@ -6,8 +6,82 @@
 using namespace stateObservation;
 using namespace kine;
 
+double dt_ = 0.005;
+
+Vector3 processPos_1_(3.0, 0.4, 1.8);
+Vector3 processPos_2_(0.2, 4.3, 1.9);
+Vector3 processPos_3_(2.5, 2.7, 0.9);
+
+double lin_stiffness_ = (double)rand() / RAND_MAX * 1e4;
+double lin_damping_ = (double)rand() / RAND_MAX * 5 * 1e1;
+double ang_stiffness_ = (double)rand() / RAND_MAX * 1e3;
+double ang_damping_ = (double)rand() / RAND_MAX * 1e1;
+
+Matrix3 K1_ = lin_stiffness_ * Matrix3::Identity();
+Matrix3 K2_ = lin_damping_ * Matrix3::Identity();
+Matrix3 K3_ = ang_stiffness_ * Matrix3::Identity();
+Matrix3 K4_ = ang_damping_ * Matrix3::Identity();
+
+double lin_stiffness_2_ = (double)rand() / RAND_MAX * 1e4;
+double lin_damping_2_ = (double)rand() / RAND_MAX * 5 * 1e1;
+double ang_stiffness_2_ = (double)rand() / RAND_MAX * 1e3;
+double ang_damping_2_ = (double)rand() / RAND_MAX * 1e1;
+
+Matrix3 K1_2_ = lin_stiffness_2_ * Matrix3::Identity();
+Matrix3 K2_2_ = lin_damping_2_ * Matrix3::Identity();
+Matrix3 K3_2_ = ang_stiffness_2_ * Matrix3::Identity();
+Matrix3 K4_2_ = ang_damping_2_ * Matrix3::Identity();
+
+Vector3 gyroBias1_ = tools::ProbabilityLawSimulation::getGaussianMatrix<Vector3>() / 10;
+
+Vector3 com_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+Vector3 com_d_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+Vector3 com_dd_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+
+Vector3 position_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+kine::Orientation ori_;
+Vector3 linvel_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+Vector3 angvel_ = tools::ProbabilityLawSimulation::getGaussianMatrix<Vector3>() / 10;
+
+Vector3 extForces_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+Vector3 extTorques_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+
+Vector3 centroidIMUPos1_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+kine::Orientation centroidIMUOri1_;
+Vector3 centroidIMULinVel1_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+Vector3 centroidIMUAngVel1_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+Vector3 centroidIMULinAcc1_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+Vector3 centroidIMUAngAcc1_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+
+Vector3 worldContactPos1_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+kine::Orientation worldContactOri1_;
+Vector3 centroidContactPos1_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+kine::Orientation centroidContactOri1_;
+Vector3 centroidContactLinVel1_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+Vector3 centroidContactAngVel1_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+Vector3 contactForces1_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() * 100;
+Vector3 contactTorques1_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() * 10;
+
+Vector3 worldContactPos2_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+kine::Orientation worldContactOri2_;
+Vector3 centroidContactPos2_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+kine::Orientation centroidContactOri2_;
+Vector3 centroidContactLinVel2_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+Vector3 centroidContactAngVel2_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+Vector3 contactForces2_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() * 100;
+Vector3 contactTorques2_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() * 10;
+
+Matrix3 inertiaMatrix_ = tools::ProbabilityLawSimulation::getUniformMatrix<Matrix3>();
+Matrix3 inertiaMatrix_d_ = tools::ProbabilityLawSimulation::getGaussianMatrix<Matrix3>();
+Vector3 angularMomentum_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+Vector3 angularMomentum_d_ = tools::ProbabilityLawSimulation::getUniformMatrix<Vector3>() / 10;
+
+Eigen::IOFormat CleanFmt_(4, 0, ", ", "\n", "[", "]");
+
 int testKineticsObserverCodeAccessor(int errorcode)
 {
+  KineticsObserver ko_1_(1, 1);
+
   double error = 0;
   double dt = 0.001;
 
@@ -79,54 +153,57 @@ int testKineticsObserverCodeAccessor(int errorcode)
   contactKine.position.set() << 1, -0.1, 0;
   o.addContact(contactKine, initialCov, processCov, 2, linDamping, linStiffness, angStiffness, angDamping);
 
-  std::cout << index << " " << x.transpose() << std::endl;
+  // std::cout << index << " " << x.transpose() << std::endl;
 
   o.update();
 
   LocalKinematics k = o.getLocalCentroidKinematics();
 
-  std::cout << k;
+  // std::cout << k;
 
-  std::cout << o.kineIndex() << " " << o.posIndex() << " " << o.oriIndex() << " " << o.linVelIndex() << " "
-            << o.angVelIndex() << " " << o.gyroBiasIndex(0) << " " << o.gyroBiasIndex(1) << " "
-            << o.unmodeledWrenchIndex() << " " << o.unmodeledForceIndex() << " " << o.unmodeledTorqueIndex() << " "
-            << o.contactsIndex() << " " << o.contactIndex(0) << " " << o.contactKineIndex(0) << " "
-            << o.contactPosIndex(0) << " " << o.contactOriIndex(0) << " " << o.contactForceIndex(0) << " "
-            << o.contactTorqueIndex(0) << " " << o.contactWrenchIndex(0) << " " <<
+  // std::cout << o.kineIndex() << " " << o.posIndex() << " " << o.oriIndex() << " " << o.linVelIndex() << " "
+  //           << o.angVelIndex() << " " << o.gyroBiasIndex(0) << " " << o.gyroBiasIndex(1) << " "
+  //           << o.unmodeledWrenchIndex() << " " << o.unmodeledForceIndex() << " " << o.unmodeledTorqueIndex() << " "
+  //           << o.contactsIndex() << " " << o.contactIndex(0) << " " << o.contactKineIndex(0) << " "
+  //           << o.contactPosIndex(0) << " " << o.contactOriIndex(0) << " " << o.contactForceIndex(0) << " "
+  //           << o.contactTorqueIndex(0) << " " << o.contactWrenchIndex(0) << " " <<
 
-      o.contactIndex(1) << " " << o.contactKineIndex(1) << " " << o.contactPosIndex(1) << " " << o.contactOriIndex(1)
-            << " " << o.contactForceIndex(1) << " " << o.contactTorqueIndex(1) << " " << o.contactWrenchIndex(1) << " "
-            <<
+  //     o.contactIndex(1) << " " << o.contactKineIndex(1) << " " << o.contactPosIndex(1) << " " << o.contactOriIndex(1)
+  //           << " " << o.contactForceIndex(1) << " " << o.contactTorqueIndex(1) << " " << o.contactWrenchIndex(1) << "
+  //           "
+  //           <<
 
-      o.contactIndex(2) << " " << o.contactKineIndex(2) << " " << o.contactPosIndex(2) << " " << o.contactOriIndex(2)
-            << " " << o.contactForceIndex(2) << " " << o.contactTorqueIndex(2) << " " << o.contactWrenchIndex(2) << " "
-            <<
+  //     o.contactIndex(2) << " " << o.contactKineIndex(2) << " " << o.contactPosIndex(2) << " " << o.contactOriIndex(2)
+  //           << " " << o.contactForceIndex(2) << " " << o.contactTorqueIndex(2) << " " << o.contactWrenchIndex(2) << "
+  //           "
+  //           <<
 
-      o.contactIndex(3) << " " << o.contactKineIndex(3) << " " << o.contactPosIndex(3) << " " << o.contactOriIndex(3)
-            << " " << o.contactForceIndex(3) << " " << o.contactTorqueIndex(3) << " " << o.contactWrenchIndex(3) << " "
-            << std::endl;
+  //     o.contactIndex(3) << " " << o.contactKineIndex(3) << " " << o.contactPosIndex(3) << " " << o.contactOriIndex(3)
+  //           << " " << o.contactForceIndex(3) << " " << o.contactTorqueIndex(3) << " " << o.contactWrenchIndex(3) << "
+  //           "
+  //           << std::endl;
 
-  std::cout << o.kineIndexTangent() << " " << o.posIndexTangent() << " " << o.oriIndexTangent() << " "
-            << o.linVelIndexTangent() << " " << o.angVelIndexTangent() << " " << o.gyroBiasIndexTangent(0) << " "
-            << o.gyroBiasIndexTangent(1) << " " << o.unmodeledWrenchIndexTangent() << " "
-            << o.unmodeledForceIndexTangent() << " " << o.unmodeledTorqueIndexTangent() << " "
-            << o.contactsIndexTangent() << " " <<
+  // std::cout << o.kineIndexTangent() << " " << o.posIndexTangent() << " " << o.oriIndexTangent() << " "
+  //           << o.linVelIndexTangent() << " " << o.angVelIndexTangent() << " " << o.gyroBiasIndexTangent(0) << " "
+  //           << o.gyroBiasIndexTangent(1) << " " << o.unmodeledWrenchIndexTangent() << " "
+  //           << o.unmodeledForceIndexTangent() << " " << o.unmodeledTorqueIndexTangent() << " "
+  //           << o.contactsIndexTangent() << " " <<
 
-      o.contactIndexTangent(0) << " " << o.contactKineIndexTangent(0) << " " << o.contactPosIndexTangent(0) << " "
-            << o.contactOriIndexTangent(0) << " " << o.contactForceIndexTangent(0) << " "
-            << o.contactTorqueIndexTangent(0) << " " << o.contactWrenchIndexTangent(0) << " " <<
+  //     o.contactIndexTangent(0) << " " << o.contactKineIndexTangent(0) << " " << o.contactPosIndexTangent(0) << " "
+  //           << o.contactOriIndexTangent(0) << " " << o.contactForceIndexTangent(0) << " "
+  //           << o.contactTorqueIndexTangent(0) << " " << o.contactWrenchIndexTangent(0) << " " <<
 
-      o.contactIndexTangent(1) << " " << o.contactKineIndexTangent(1) << " " << o.contactPosIndexTangent(1) << " "
-            << o.contactOriIndexTangent(1) << " " << o.contactForceIndexTangent(1) << " "
-            << o.contactTorqueIndexTangent(1) << " " << o.contactWrenchIndexTangent(1) << " " <<
+  //     o.contactIndexTangent(1) << " " << o.contactKineIndexTangent(1) << " " << o.contactPosIndexTangent(1) << " "
+  //           << o.contactOriIndexTangent(1) << " " << o.contactForceIndexTangent(1) << " "
+  //           << o.contactTorqueIndexTangent(1) << " " << o.contactWrenchIndexTangent(1) << " " <<
 
-      o.contactIndexTangent(2) << " " << o.contactKineIndexTangent(2) << " " << o.contactPosIndexTangent(2) << " "
-            << o.contactOriIndexTangent(2) << " " << o.contactForceIndexTangent(2) << " "
-            << o.contactTorqueIndexTangent(2) << " " << o.contactWrenchIndexTangent(2) << " " <<
+  //     o.contactIndexTangent(2) << " " << o.contactKineIndexTangent(2) << " " << o.contactPosIndexTangent(2) << " "
+  //           << o.contactOriIndexTangent(2) << " " << o.contactForceIndexTangent(2) << " "
+  //           << o.contactTorqueIndexTangent(2) << " " << o.contactWrenchIndexTangent(2) << " " <<
 
-      o.contactIndexTangent(3) << " " << o.contactKineIndexTangent(3) << " " << o.contactPosIndexTangent(3) << " "
-            << o.contactOriIndexTangent(3) << " " << o.contactForceIndexTangent(3) << " "
-            << o.contactTorqueIndexTangent(3) << " " << o.contactWrenchIndexTangent(3) << " " << std::endl;
+  //     o.contactIndexTangent(3) << " " << o.contactKineIndexTangent(3) << " " << o.contactPosIndexTangent(3) << " "
+  //           << o.contactOriIndexTangent(3) << " " << o.contactForceIndexTangent(3) << " "
+  //           << o.contactTorqueIndexTangent(3) << " " << o.contactWrenchIndexTangent(3) << " " << std::endl;
 
   o.setWithUnmodeledWrench(true);
   o.setWithAccelerationEstimation(true);
@@ -154,16 +231,16 @@ int testKineticsObserverCodeAccessor(int errorcode)
   Vector state3;
   o.stateSum(state2, statediff, state3);
 
-  std::cout << state1.transpose() << std::endl;
-  std::cout << state3.transpose() << std::endl;
+  // std::cout << state1.transpose() << std::endl;
+  // std::cout << state3.transpose() << std::endl;
 
   Matrix statecomp(state1.size(), 2);
 
   statecomp << state1, state3;
 
-  std::cout << statecomp << std::endl;
+  // std::cout << statecomp << std::endl;
 
-  std::cout << "Sum error" << (error = o.stateDifference(state1, state3).norm()) << std::endl;
+  // std::cout << "Sum error" << (error = o.stateDifference(state1, state3).norm()) << std::endl;
 
   state2 = o.getEKF().stateVectorRandom();
   statediff = o.getEKF().stateTangentVectorRandom();
@@ -172,14 +249,14 @@ int testKineticsObserverCodeAccessor(int errorcode)
   o.stateSum(state2, statediff, state1);
   o.stateDifference(state1, state2, statediff_bis);
 
-  std::cout << statediff.transpose() << std::endl;
-  std::cout << statediff_bis.transpose() << std::endl;
+  // std::cout << statediff.transpose() << std::endl;
+  // std::cout << statediff_bis.transpose() << std::endl;
 
   Matrix statecompdiff(statediff.size(), 2);
 
   statecompdiff << statediff, statediff_bis;
 
-  std::cout << statecompdiff << std::endl;
+  // std::cout << statecompdiff << std::endl;
 
   std::cout << "DIff error" << (error += (statediff - statediff_bis).norm()) << std::endl;
 
@@ -189,6 +266,417 @@ int testKineticsObserverCodeAccessor(int errorcode)
   }
 
   o.clearContacts();
+
+  return 0;
+}
+
+int testContactRestPoseCovariance_1contact(int errorcode)
+{
+  KineticsObserver ko_1_(1, 1);
+
+  Vector stateVector_;
+
+  ko_1_.setSamplingTime(dt_);
+  ko_1_.setWithUnmodeledWrench(true);
+  ko_1_.setWithGyroBias(false);
+
+  inertiaMatrix_ = inertiaMatrix_ * inertiaMatrix_.transpose();
+  inertiaMatrix_d_ = inertiaMatrix_d_ * inertiaMatrix_d_.transpose();
+
+  ori_.setRandom();
+
+  /* Kinetics Observer 1 initialization */
+
+  centroidIMUOri1_.setRandom();
+  Kinematics centroidIMUPose1_;
+  centroidIMUPose1_.position = centroidIMUPos1_;
+  centroidIMUPose1_.orientation = centroidIMUOri1_;
+  centroidIMUPose1_.linVel = centroidIMULinVel1_;
+  centroidIMUPose1_.angVel = centroidIMUAngVel1_;
+  centroidIMUPose1_.linAcc = centroidIMULinAcc1_;
+  centroidIMUPose1_.angAcc = centroidIMUAngAcc1_;
+
+  worldContactOri1_.setRandom();
+  Kinematics worldContactPose1_;
+  worldContactPose1_.position = worldContactPos1_;
+  worldContactPose1_.orientation = worldContactOri1_;
+  centroidContactOri1_.setRandom();
+  Kinematics centroidContactPose1_;
+  centroidContactPose1_.position = centroidContactPos1_;
+  centroidContactPose1_.orientation = centroidContactOri1_;
+  centroidContactPose1_.linVel = centroidContactLinVel1_;
+  centroidContactPose1_.angVel = centroidContactAngVel1_;
+
+  ko_1_.setCenterOfMass(com_, com_d_, com_dd_);
+  ko_1_.setIMU(Vector3::Zero(), Vector3::Zero(), centroidIMUPose1_, 0);
+
+  ko_1_.setCoMAngularMomentum(angularMomentum_, angularMomentum_d_);
+  ko_1_.setCoMInertiaMatrix(inertiaMatrix_, inertiaMatrix_d_);
+
+  ko_1_.addContact(worldContactPose1_, 0, K1_, K2_, K3_, K4_);
+  ko_1_.updateContactWithWrenchSensor(Vector6::Zero(), centroidContactPose1_, 0);
+
+  stateVector_.resize(position_.size() + 4 + linvel_.size() + angvel_.size() + gyroBias1_.size() + extForces_.size()
+                      + extTorques_.size()
+                      + 1
+                            * (worldContactPos1_.size() + worldContactOri1_.toVector4().size() + contactForces1_.size()
+                               + contactTorques1_.size()));
+  stateVector_ << position_, ori_.toVector4(), linvel_, angvel_, gyroBias1_, extForces_, extTorques_, worldContactPos1_,
+      worldContactOri1_.toVector4(), contactForces1_, contactTorques1_;
+
+  ko_1_.setInitWorldCentroidStateVector(stateVector_);
+
+  ko_1_.update();
+
+  Eigen::MatrixXd contact1_Q_temp = Eigen::MatrixXd::Zero(3, 3);
+  contact1_Q_temp.block(0, 0, 3, 3) =
+      ko_1_.getEKF().getQ().block(ko_1_.contactIndexTangent(0), ko_1_.contactIndexTangent(0), 3, 3);
+
+  // std::cout << std::endl << "Contact1: " << std::endl << contact1_Q_temp.format(CleanFmt_) << std::endl;
+
+  // std::cout << std::endl
+  //           << "################################################### New iter "
+  //              "###################################################"
+  //           << std::endl;
+
+  ko_1_.setCenterOfMass(com_, com_d_, com_dd_);
+  ko_1_.setIMU(Vector3::Zero(), Vector3::Zero(), centroidIMUPose1_, 0);
+
+  ko_1_.setCoMAngularMomentum(angularMomentum_, angularMomentum_d_);
+  ko_1_.setCoMInertiaMatrix(inertiaMatrix_, inertiaMatrix_d_);
+
+  ko_1_.updateContactWithWrenchSensor(Vector6::Zero(), centroidContactPose1_, 0);
+
+  Matrix3 processPos = processPos_1_.asDiagonal();
+
+  ko_1_.setContactProcessCovMat(0, &processPos);
+
+  ko_1_.update();
+
+  Eigen::MatrixXd contact1_Q = Eigen::MatrixXd::Zero(3, 3);
+  contact1_Q.block(0, 0, 3, 3) =
+      ko_1_.getEKF().getQ().block(ko_1_.contactIndexTangent(0), ko_1_.contactIndexTangent(0), 3, 3);
+
+  // std::cout << std::endl << "Contact1: " << std::endl << contact1_Q.format(CleanFmt_) << std::endl;
+
+  return 0;
+}
+
+int testContactRestPoseCovariance_2contacts(int errorcode)
+{
+  KineticsObserver ko_2_(2, 1);
+
+  Vector stateVector_;
+
+  ko_2_.setSamplingTime(dt_);
+  ko_2_.setWithUnmodeledWrench(true);
+  ko_2_.setWithGyroBias(false);
+
+  inertiaMatrix_ = inertiaMatrix_ * inertiaMatrix_.transpose();
+  inertiaMatrix_d_ = inertiaMatrix_d_ * inertiaMatrix_d_.transpose();
+
+  ori_.setRandom();
+
+  /* Kinetics Observer 1 initialization */
+
+  centroidIMUOri1_.setRandom();
+  Kinematics centroidIMUPose1_;
+  centroidIMUPose1_.position = centroidIMUPos1_;
+  centroidIMUPose1_.orientation = centroidIMUOri1_;
+  centroidIMUPose1_.linVel = centroidIMULinVel1_;
+  centroidIMUPose1_.angVel = centroidIMUAngVel1_;
+  centroidIMUPose1_.linAcc = centroidIMULinAcc1_;
+  centroidIMUPose1_.angAcc = centroidIMUAngAcc1_;
+
+  worldContactOri1_.setRandom();
+  Kinematics worldContactPose1_;
+  worldContactPose1_.position = worldContactPos1_;
+  worldContactPose1_.orientation = worldContactOri1_;
+  centroidContactOri1_.setRandom();
+  Kinematics centroidContactPose1_;
+  centroidContactPose1_.position = centroidContactPos1_;
+  centroidContactPose1_.orientation = centroidContactOri1_;
+  centroidContactPose1_.linVel = centroidContactLinVel1_;
+  centroidContactPose1_.angVel = centroidContactAngVel1_;
+
+  Kinematics worldContactPose2_ = worldContactPose1_;
+  Kinematics centroidContactPose2_ = centroidContactPose1_;
+
+  ko_2_.setCenterOfMass(com_, com_d_, com_dd_);
+  ko_2_.setIMU(Vector3::Zero(), Vector3::Zero(), centroidIMUPose1_, 0);
+
+  ko_2_.setCoMAngularMomentum(angularMomentum_, angularMomentum_d_);
+  ko_2_.setCoMInertiaMatrix(inertiaMatrix_, inertiaMatrix_d_);
+
+  ko_2_.addContact(worldContactPose1_, 0, K1_, K2_, K3_, K4_);
+  ko_2_.addContact(worldContactPose2_, 1, K1_, K2_, K3_, K4_);
+  ko_2_.updateContactWithWrenchSensor(Vector6::Zero(), centroidContactPose1_, 0);
+  ko_2_.updateContactWithWrenchSensor(Vector6::Zero(), centroidContactPose2_, 1);
+
+  stateVector_.resize(position_.size() + 4 + linvel_.size() + angvel_.size() + gyroBias1_.size() + extForces_.size()
+                      + extTorques_.size()
+                      + 2
+                            * (worldContactPos1_.size() + worldContactOri1_.toVector4().size() + contactForces1_.size()
+                               + contactTorques1_.size()));
+  stateVector_ << position_, ori_.toVector4(), linvel_, angvel_, gyroBias1_, extForces_, extTorques_, worldContactPos1_,
+      worldContactOri1_.toVector4(), contactForces1_, contactTorques1_, worldContactPos1_,
+      worldContactOri1_.toVector4(), contactForces2_, contactTorques2_;
+
+  ko_2_.setInitWorldCentroidStateVector(stateVector_);
+
+  ko_2_.update();
+
+  Eigen::MatrixXd contact1_Q_temp = Eigen::MatrixXd::Zero(3, 6);
+  contact1_Q_temp.block(0, 0, 3, 3) =
+      ko_2_.getEKF().getQ().block(ko_2_.contactIndexTangent(0), ko_2_.contactIndexTangent(0), 3, 3);
+  contact1_Q_temp.block(0, 3, 3, 3) =
+      ko_2_.getEKF().getQ().block(ko_2_.contactIndexTangent(0), ko_2_.contactIndexTangent(1), 3, 3);
+
+  Eigen::MatrixXd contact2_Q_temp = Eigen::MatrixXd::Zero(3, 6);
+  contact2_Q_temp.block(0, 0, 3, 3) =
+      ko_2_.getEKF().getQ().block(ko_2_.contactIndexTangent(1), ko_2_.contactIndexTangent(0), 3, 3);
+  contact2_Q_temp.block(0, 3, 3, 3) =
+      ko_2_.getEKF().getQ().block(ko_2_.contactIndexTangent(1), ko_2_.contactIndexTangent(1), 3, 3);
+
+  // std::cout << std::endl << "Contact1: " << std::endl << contact1_Q_temp.format(CleanFmt_) << std::endl;
+  // std::cout << std::endl << "Contact2: " << std::endl << contact2_Q_temp.format(CleanFmt_) << std::endl;
+
+  // std::cout << std::endl
+  //           << "################################################### New iter "
+  //              "###################################################"
+  //           << std::endl;
+
+  ko_2_.setCenterOfMass(com_, com_d_, com_dd_);
+  ko_2_.setIMU(Vector3::Zero(), Vector3::Zero(), centroidIMUPose1_, 0);
+
+  ko_2_.setCoMAngularMomentum(angularMomentum_, angularMomentum_d_);
+  ko_2_.setCoMInertiaMatrix(inertiaMatrix_, inertiaMatrix_d_);
+
+  ko_2_.updateContactWithWrenchSensor(Vector6::Zero(), centroidContactPose1_, 0);
+  ko_2_.updateContactWithWrenchSensor(Vector6::Zero(), centroidContactPose2_, 1);
+
+  Matrix3 processPos1 = processPos_1_.asDiagonal();
+  Matrix3 processPos2 = processPos_2_.asDiagonal();
+
+  ko_2_.setContactProcessCovMat(0, &processPos1);
+  ko_2_.setContactProcessCovMat(1, &processPos2);
+
+  ko_2_.update();
+
+  Eigen::MatrixXd contact1_Q = Eigen::MatrixXd::Zero(3, 6);
+  contact1_Q.block(0, 0, 3, 3) =
+      ko_2_.getEKF().getQ().block(ko_2_.contactIndexTangent(0), ko_2_.contactIndexTangent(0), 3, 3);
+  contact1_Q.block(0, 3, 3, 3) =
+      ko_2_.getEKF().getQ().block(ko_2_.contactIndexTangent(0), ko_2_.contactIndexTangent(1), 3, 3);
+
+  Eigen::MatrixXd contact2_Q = Eigen::MatrixXd::Zero(3, 6);
+  contact2_Q.block(0, 0, 3, 3) =
+      ko_2_.getEKF().getQ().block(ko_2_.contactIndexTangent(1), ko_2_.contactIndexTangent(0), 3, 3);
+  contact2_Q.block(0, 3, 3, 3) =
+      ko_2_.getEKF().getQ().block(ko_2_.contactIndexTangent(1), ko_2_.contactIndexTangent(1), 3, 3);
+
+  // std::cout << std::endl << "Contact1: " << std::endl << contact1_Q.format(CleanFmt_) << std::endl;
+  // std::cout << std::endl << "Contact2: " << std::endl << contact2_Q.format(CleanFmt_) << std::endl;
+
+  return 0;
+}
+
+int testContactRestPoseCovariance_3contacts(int errorcode)
+{
+  KineticsObserver ko_3_(3, 1);
+
+  Vector stateVector_;
+
+  ko_3_.setSamplingTime(dt_);
+  ko_3_.setWithUnmodeledWrench(true);
+  ko_3_.setWithGyroBias(false);
+
+  inertiaMatrix_ = inertiaMatrix_ * inertiaMatrix_.transpose();
+  inertiaMatrix_d_ = inertiaMatrix_d_ * inertiaMatrix_d_.transpose();
+
+  ori_.setRandom();
+
+  /* Kinetics Observer 1 initialization */
+
+  centroidIMUOri1_.setRandom();
+  Kinematics centroidIMUPose1_;
+  centroidIMUPose1_.position = centroidIMUPos1_;
+  centroidIMUPose1_.orientation = centroidIMUOri1_;
+  centroidIMUPose1_.linVel = centroidIMULinVel1_;
+  centroidIMUPose1_.angVel = centroidIMUAngVel1_;
+  centroidIMUPose1_.linAcc = centroidIMULinAcc1_;
+  centroidIMUPose1_.angAcc = centroidIMUAngAcc1_;
+
+  worldContactOri1_.setRandom();
+  Kinematics worldContactPose1_;
+  worldContactPose1_.position = worldContactPos1_;
+  worldContactPose1_.orientation = worldContactOri1_;
+  centroidContactOri1_.setRandom();
+  Kinematics centroidContactPose1_;
+  centroidContactPose1_.position = centroidContactPos1_;
+  centroidContactPose1_.orientation = centroidContactOri1_;
+  centroidContactPose1_.linVel = centroidContactLinVel1_;
+  centroidContactPose1_.angVel = centroidContactAngVel1_;
+
+  Kinematics worldContactPose2_ = worldContactPose1_;
+  Kinematics centroidContactPose2_ = centroidContactPose1_;
+  Kinematics worldContactPose3_ = worldContactPose1_;
+  Kinematics centroidContactPose3_ = centroidContactPose1_;
+  Vector3 contactForces3_ = contactForces1_;
+  Vector3 contactTorques3_ = contactTorques1_;
+
+  ko_3_.setCenterOfMass(com_, com_d_, com_dd_);
+  ko_3_.setIMU(Vector3::Zero(), Vector3::Zero(), centroidIMUPose1_, 0);
+
+  ko_3_.setCoMAngularMomentum(angularMomentum_, angularMomentum_d_);
+  ko_3_.setCoMInertiaMatrix(inertiaMatrix_, inertiaMatrix_d_);
+
+  ko_3_.addContact(worldContactPose1_, 0, K1_, K2_, K3_, K4_);
+  ko_3_.addContact(worldContactPose2_, 1, K1_, K2_, K3_, K4_);
+  ko_3_.addContact(worldContactPose3_, 2, K1_, K2_, K3_, K4_);
+  ko_3_.updateContactWithWrenchSensor(Vector6::Zero(), centroidContactPose1_, 0);
+  ko_3_.updateContactWithWrenchSensor(Vector6::Zero(), centroidContactPose2_, 1);
+  ko_3_.updateContactWithWrenchSensor(Vector6::Zero(), centroidContactPose3_, 2);
+
+  stateVector_.resize(position_.size() + 4 + linvel_.size() + angvel_.size() + gyroBias1_.size() + extForces_.size()
+                      + extTorques_.size()
+                      + 3
+                            * (worldContactPos1_.size() + worldContactOri1_.toVector4().size() + contactForces1_.size()
+                               + contactTorques1_.size()));
+  stateVector_ << position_, ori_.toVector4(), linvel_, angvel_, gyroBias1_, extForces_, extTorques_, worldContactPos1_,
+      worldContactOri1_.toVector4(), contactForces1_, contactTorques1_, worldContactPos1_,
+      worldContactOri1_.toVector4(), contactForces2_, contactTorques2_, worldContactPos1_,
+      worldContactOri1_.toVector4(), contactForces3_, contactTorques3_;
+
+  ko_3_.setInitWorldCentroidStateVector(stateVector_);
+
+  ko_3_.update();
+
+  Eigen::MatrixXd contact1_Q_temp = Eigen::MatrixXd::Zero(3, 9);
+  contact1_Q_temp.block(0, 0, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), ko_3_.contactIndexTangent(0), 3, 3);
+  contact1_Q_temp.block(0, 3, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), ko_3_.contactIndexTangent(1), 3, 3);
+  contact1_Q_temp.block(0, 6, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), ko_3_.contactIndexTangent(2), 3, 3);
+
+  Eigen::MatrixXd contact2_Q_temp = Eigen::MatrixXd::Zero(3, 9);
+  contact2_Q_temp.block(0, 0, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), ko_3_.contactIndexTangent(0), 3, 3);
+  contact2_Q_temp.block(0, 3, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), ko_3_.contactIndexTangent(1), 3, 3);
+  contact2_Q_temp.block(0, 6, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), ko_3_.contactIndexTangent(2), 3, 3);
+
+  Eigen::MatrixXd contact3_Q_temp = Eigen::MatrixXd::Zero(3, 9);
+  contact3_Q_temp.block(0, 0, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(2), ko_3_.contactIndexTangent(0), 3, 3);
+  contact3_Q_temp.block(0, 3, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(2), ko_3_.contactIndexTangent(1), 3, 3);
+  contact3_Q_temp.block(0, 6, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(2), ko_3_.contactIndexTangent(2), 3, 3);
+
+  // std::cout << std::endl << "Contact1: " << std::endl << contact1_Q_temp.format(CleanFmt_) << std::endl;
+  // std::cout << std::endl << "Contact2: " << std::endl << contact2_Q_temp.format(CleanFmt_) << std::endl;
+  // std::cout << std::endl << "Contact3: " << std::endl << contact3_Q_temp.format(CleanFmt_) << std::endl;
+
+  // std::cout << std::endl
+  //           << "################################################### New iter "
+  //              "###################################################"
+  //           << std::endl;
+
+  ko_3_.setCenterOfMass(com_, com_d_, com_dd_);
+  ko_3_.setIMU(Vector3::Zero(), Vector3::Zero(), centroidIMUPose1_, 0);
+
+  ko_3_.setCoMAngularMomentum(angularMomentum_, angularMomentum_d_);
+  ko_3_.setCoMInertiaMatrix(inertiaMatrix_, inertiaMatrix_d_);
+
+  ko_3_.updateContactWithWrenchSensor(Vector6::Zero(), centroidContactPose1_, 0);
+  ko_3_.updateContactWithWrenchSensor(Vector6::Zero(), centroidContactPose2_, 1);
+  ko_3_.updateContactWithWrenchSensor(Vector6::Zero(), centroidContactPose3_, 2);
+
+  Matrix3 processPos1 = processPos_1_.asDiagonal();
+  Matrix3 processPos2 = processPos_2_.asDiagonal();
+  Matrix3 processPos3 = processPos_3_.asDiagonal();
+
+  ko_3_.setContactProcessCovMat(0, &processPos1);
+  ko_3_.setContactProcessCovMat(1, &processPos2);
+  ko_3_.setContactProcessCovMat(2, &processPos3);
+
+  ko_3_.update();
+
+  Eigen::MatrixXd contact1_Q = Eigen::MatrixXd::Zero(3, 9);
+  contact1_Q.block(0, 0, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), ko_3_.contactIndexTangent(0), 3, 3);
+  contact1_Q.block(0, 3, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), ko_3_.contactIndexTangent(1), 3, 3);
+  contact1_Q.block(0, 6, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), ko_3_.contactIndexTangent(2), 3, 3);
+
+  Eigen::MatrixXd contact2_Q = Eigen::MatrixXd::Zero(3, 9);
+  contact2_Q.block(0, 0, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), ko_3_.contactIndexTangent(0), 3, 3);
+  contact2_Q.block(0, 3, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), ko_3_.contactIndexTangent(1), 3, 3);
+  contact2_Q.block(0, 6, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), ko_3_.contactIndexTangent(2), 3, 3);
+
+  Eigen::MatrixXd contact3_Q = Eigen::MatrixXd::Zero(3, 9);
+  contact3_Q.block(0, 0, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(2), ko_3_.contactIndexTangent(0), 3, 3);
+  contact3_Q.block(0, 3, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(2), ko_3_.contactIndexTangent(1), 3, 3);
+  contact3_Q.block(0, 6, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(2), ko_3_.contactIndexTangent(2), 3, 3);
+
+  // std::cout << std::endl << "Contact1: " << std::endl << contact1_Q.format(CleanFmt_) << std::endl;
+  // std::cout << std::endl << "Contact2: " << std::endl << contact2_Q.format(CleanFmt_) << std::endl;
+  // std::cout << std::endl << "Contact3: " << std::endl << contact3_Q.format(CleanFmt_) << std::endl;
+
+  // std::cout << std::endl
+  //           << "################################################### New iter: we remove the contact 2"
+  //              "###################################################"
+  //           << std::endl;
+
+  /* We remove the last contact to verify that we will have the same result that when we had two contacts */
+
+  // we save this index as it cannot be accessed once the contact is removed
+  Index contact2Index = ko_3_.contactIndexTangent(2);
+
+  ko_3_.setCenterOfMass(com_, com_d_, com_dd_);
+  ko_3_.setIMU(Vector3::Zero(), Vector3::Zero(), centroidIMUPose1_, 0);
+
+  ko_3_.setCoMAngularMomentum(angularMomentum_, angularMomentum_d_);
+  ko_3_.setCoMInertiaMatrix(inertiaMatrix_, inertiaMatrix_d_);
+
+  ko_3_.updateContactWithWrenchSensor(Vector6::Zero(), centroidContactPose1_, 0);
+  ko_3_.updateContactWithWrenchSensor(Vector6::Zero(), centroidContactPose2_, 1);
+  // we remove the contact 2
+  ko_3_.removeContact(2);
+  ko_3_.update();
+
+  contact1_Q.setZero();
+  contact1_Q.block(0, 0, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), ko_3_.contactIndexTangent(0), 3, 3);
+  contact1_Q.block(0, 3, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), ko_3_.contactIndexTangent(1), 3, 3);
+  contact1_Q.block(0, 6, 3, 3) = ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), contact2Index, 3, 3);
+
+  contact2_Q.setZero();
+  contact2_Q.block(0, 0, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), ko_3_.contactIndexTangent(0), 3, 3);
+  contact2_Q.block(0, 3, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), ko_3_.contactIndexTangent(1), 3, 3);
+  contact2_Q.block(0, 6, 3, 3) = ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), contact2Index, 3, 3);
+
+  contact3_Q.setZero();
+  contact3_Q.block(0, 0, 3, 3) = ko_3_.getEKF().getQ().block(contact2Index, ko_3_.contactIndexTangent(0), 3, 3);
+  contact3_Q.block(0, 3, 3, 3) = ko_3_.getEKF().getQ().block(contact2Index, ko_3_.contactIndexTangent(1), 3, 3);
+  contact3_Q.block(0, 6, 3, 3) = ko_3_.getEKF().getQ().block(contact2Index, contact2Index, 3, 3);
+
+  // std::cout << std::endl << "Contact1: " << std::endl << contact1_Q.format(CleanFmt_) << std::endl;
+  // std::cout << std::endl << "Contact2: " << std::endl << contact2_Q.format(CleanFmt_) << std::endl;
+  // std::cout << std::endl << "Contact3: " << std::endl << contact3_Q.format(CleanFmt_) << std::endl;
 
   return 0;
 }
@@ -206,6 +694,36 @@ int main()
   else
   {
     std::cout << "Kinetics Observer test succeeded" << std::endl;
+  }
+
+  if((returnVal = testContactRestPoseCovariance_1contact(4)))
+  {
+    std::cout << "testContactRestPoseCovariance_1contact failed, code : 4" << std::endl;
+    return returnVal;
+  }
+  else
+  {
+    std::cout << "testContactRestPoseCovariance_1contact succeeded" << std::endl;
+  }
+
+  if((returnVal = testContactRestPoseCovariance_2contacts(4)))
+  {
+    std::cout << "testContactRestPoseCovariance_2contacts failed, code : 4" << std::endl;
+    return returnVal;
+  }
+  else
+  {
+    std::cout << "testContactRestPoseCovariance_2contacts succeeded" << std::endl;
+  }
+
+  if((returnVal = testContactRestPoseCovariance_3contacts(4)))
+  {
+    std::cout << "testContactRestPoseCovariance_3contacts failed, code : 4" << std::endl;
+    return returnVal;
+  }
+  else
+  {
+    std::cout << "testContactRestPoseCovariance_3contacts succeeded" << std::endl;
   }
 
   std::cout << "test succeeded" << std::endl;
