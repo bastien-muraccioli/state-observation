@@ -109,6 +109,11 @@ public:
   /// @param b
   void setWithGyroBias(bool b = true);
 
+  /// @brief Set if the damping component of the visco-elastic contact force must be used in the annalytical A matrix.
+  ///
+  /// @param b
+  void setWithDampingInMatrixA(bool b = true);
+
   /// @brief Set the total mass of the robot. This can be changed online
   ///
   /// @return sets
@@ -1398,6 +1403,7 @@ protected:
   bool withGyroBias_;
   bool withUnmodeledWrench_;
   bool withAccelerationEstimation_;
+  bool withDampingInMatrixA_;
 
   IndexedVector3 com_, comd_, comdd_;
   IndexedVector3 sigma_, sigmad_;

@@ -95,9 +95,9 @@ KineticsObserver::KineticsObserver(unsigned maxContacts, unsigned maxNumberOfIMU
   additionalForce_(Vector3::Zero()), additionalTorque_(Vector3::Zero()),
   ekf_(stateSize_, stateTangentSize_, measurementSizeBase, measurementSizeBase, inputSize, false, false),
   finiteDifferencesJacobians_(false), withGyroBias_(false), withUnmodeledWrench_(false),
-  withAccelerationEstimation_(false), k_est_(0), k_data_(0), mass_(defaultMass), dt_(defaultdx), processNoise_(0x0),
-  measurementNoise_(0x0), numberOfContactRealSensors_(0), currentIMUSensorNumber_(0),
-  linearStiffnessMatDefault_(Matrix3::Identity() * linearStiffnessDefault),
+  withAccelerationEstimation_(false), withDampingInMatrixA_(false), k_est_(0), k_data_(0), mass_(defaultMass),
+  dt_(defaultdx), processNoise_(0x0), measurementNoise_(0x0), numberOfContactRealSensors_(0),
+  currentIMUSensorNumber_(0), linearStiffnessMatDefault_(Matrix3::Identity() * linearStiffnessDefault),
   angularStiffnessMatDefault_(Matrix3::Identity() * angularStiffnessDefault),
   linearDampingMatDefault_(Matrix3::Identity() * linearDampingDefault),
   angularDampingMatDefault_(Matrix3::Identity() * angularDampingDefault),
@@ -704,6 +704,11 @@ bool KineticsObserver::getWithAccelerationEstimation() const
 void KineticsObserver::setWithGyroBias(bool b)
 {
   withGyroBias_ = b;
+}
+
+void KineticsObserver::setWithDampingInMatrixA(bool b)
+{
+  withDampingInMatrixA_ = b;
 }
 
 Index KineticsObserver::setIMU(const Vector3 & accelero,
@@ -2130,13 +2135,20 @@ Matrix KineticsObserver::computeAMatrix()
                                    + contact.linearDamping
                                          * (predictedWorldCentroidStateOri.toMatrix3() * sumVelContact)
                                    - contact.linearStiffness * predictedWorldContactRestPosition));
+
       // jacobian matrix of the contact force wrt the linear velocity
-      Matrix3 J_contactForce_vl_at_same_time =
-          -(contactWorldOri.toMatrix3() * contact.linearDamping * predictedWorldCentroidStateOri.toMatrix3());
-      // jacobian matrix of the contact force wrt the angular velocity
-      Matrix3 J_contactForce_omega_at_same_time =
-          contactWorldOri.toMatrix3() * contact.linearDamping
-          * (predictedWorldCentroidStateOri.toMatrix3() * kine::skewSymmetric(centroidContactKine.position()));
+      Matrix3 J_contactForce_vl_at_same_time = Matrix3::Zero();
+      Matrix3 J_contactForce_omega_at_same_time = Matrix3::Zero();
+      if(withDampingInMatrixA_)
+      {
+        J_contactForce_vl_at_same_time =
+            -(contactWorldOri.toMatrix3() * contact.linearDamping * predictedWorldCentroidStateOri.toMatrix3());
+        // jacobian matrix of the contact force wrt the angular velocity
+        J_contactForce_omega_at_same_time =
+            contactWorldOri.toMatrix3() * contact.linearDamping
+            * (predictedWorldCentroidStateOri.toMatrix3() * kine::skewSymmetric(centroidContactKine.position()));
+      }
+
       // jacobian matrix of the contact force wrt the contact position
       Matrix3 J_contactForce_contactPosition_at_same_time = contactWorldOri.toMatrix3() * contact.linearStiffness;
 
@@ -2150,12 +2162,14 @@ Matrix KineticsObserver::computeAMatrix()
       A.block<sizeForceTangent, sizeAngVelTangent>(contactForceIndexTangent(i), angVelIndexTangent()) =
           J_contactForce_pl_at_same_time * J_pl_omega + J_contactForce_R_at_same_time * J_R_omega
           + J_contactForce_vl_at_same_time * J_vl_omega + J_contactForce_omega_at_same_time * J_omega_omega;
+
       A.block<sizeForceTangent, sizePosTangent>(contactForceIndexTangent(i), contactPosIndexTangent(i)) =
           J_contactForce_contactPosition_at_same_time;
       A.block<sizeForceTangent, sizeForceTangent>(contactForceIndexTangent(i), contactForceIndexTangent(i)) =
           J_contactForce_pl_at_same_time * J_pl_contactForce + J_contactForce_R_at_same_time * J_R_contactForce
-          + J_contactForce_vl_at_same_time * J_vl_contactForce
-          + J_contactForce_omega_at_same_time * J_omega_contactForce;
+          + J_contactForce_omega_at_same_time * J_omega_contactForce
+          + J_contactForce_vl_at_same_time * J_vl_contactForce;
+
       A.block<sizeForceTangent, sizeTorqueTangent>(contactForceIndexTangent(i), contactTorqueIndexTangent(i)) =
           J_contactForce_pl_at_same_time * J_pl_contactTorque + J_contactForce_R_at_same_time * J_R_contactTorque
           + J_contactForce_omega_at_same_time * J_omega_contactTorque;

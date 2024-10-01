@@ -469,6 +469,7 @@ int main()
   ko_1_.setSamplingTime(dt_);
   ko_1_.setWithUnmodeledWrench(true);
   ko_1_.setWithGyroBias(true);
+  ko_1_.setWithDampingInMatrixA(true);
 
   ko_1_.setCoMAngularMomentum(angularMomentum_, angularMomentum_d_);
   ko_1_.setCoMInertiaMatrix(inertiaMatrix_, inertiaMatrix_d_);
@@ -569,6 +570,7 @@ int main()
   ko_2_.setSamplingTime(dt_);
   ko_2_.setWithUnmodeledWrench(true);
   ko_2_.setWithGyroBias(true);
+  ko_2_.setWithDampingInMatrixA(true);
 
   ko_2_.setCoMAngularMomentum(angularMomentum_, angularMomentum_d_);
 
