@@ -426,25 +426,39 @@ int testContactRestPoseCovariance_2contacts(int errorcode)
 
   ko_2_.update();
 
-  Eigen::MatrixXd contact1_Q_temp = Eigen::MatrixXd::Zero(3, 6);
-  contact1_Q_temp.block(0, 0, 3, 3) =
+  Eigen::MatrixXd contact1_Q_temp_pos = Eigen::MatrixXd::Zero(3, 6);
+  contact1_Q_temp_pos.block(0, 0, 3, 3) =
       ko_2_.getEKF().getQ().block(ko_2_.contactIndexTangent(0), ko_2_.contactIndexTangent(0), 3, 3);
-  contact1_Q_temp.block(0, 3, 3, 3) =
+  contact1_Q_temp_pos.block(0, 3, 3, 3) =
       ko_2_.getEKF().getQ().block(ko_2_.contactIndexTangent(0), ko_2_.contactIndexTangent(1), 3, 3);
 
-  Eigen::MatrixXd contact2_Q_temp = Eigen::MatrixXd::Zero(3, 6);
-  contact2_Q_temp.block(0, 0, 3, 3) =
+  Eigen::MatrixXd contact1_Q_temp_ori = Eigen::MatrixXd::Zero(3, 6);
+  contact1_Q_temp_ori.block(0, 0, 3, 3) =
+      ko_2_.getEKF().getQ().block(ko_2_.contactOriIndexTangent(0), ko_2_.contactOriIndexTangent(0), 3, 3);
+  contact1_Q_temp_ori.block(0, 3, 3, 3) =
+      ko_2_.getEKF().getQ().block(ko_2_.contactOriIndexTangent(0), ko_2_.contactOriIndexTangent(1), 3, 3);
+
+  Eigen::MatrixXd contact2_Q_temp_pos = Eigen::MatrixXd::Zero(3, 6);
+  contact2_Q_temp_pos.block(0, 0, 3, 3) =
       ko_2_.getEKF().getQ().block(ko_2_.contactIndexTangent(1), ko_2_.contactIndexTangent(0), 3, 3);
-  contact2_Q_temp.block(0, 3, 3, 3) =
+  contact2_Q_temp_pos.block(0, 3, 3, 3) =
       ko_2_.getEKF().getQ().block(ko_2_.contactIndexTangent(1), ko_2_.contactIndexTangent(1), 3, 3);
 
-  // std::cout << std::endl << "Contact1: " << std::endl << contact1_Q_temp.format(CleanFmt_) << std::endl;
-  // std::cout << std::endl << "Contact2: " << std::endl << contact2_Q_temp.format(CleanFmt_) << std::endl;
+  Eigen::MatrixXd contact2_Q_temp_ori = Eigen::MatrixXd::Zero(3, 6);
+  contact2_Q_temp_ori.block(0, 0, 3, 3) =
+      ko_2_.getEKF().getQ().block(ko_2_.contactOriIndexTangent(1), ko_2_.contactOriIndexTangent(0), 3, 3);
+  contact2_Q_temp_ori.block(0, 3, 3, 3) =
+      ko_2_.getEKF().getQ().block(ko_2_.contactOriIndexTangent(1), ko_2_.contactOriIndexTangent(1), 3, 3);
 
-  // std::cout << std::endl
-  //           << "################################################### New iter "
-  //              "###################################################"
-  //           << std::endl;
+  std::cout << std::endl << "Contact1 pos: " << std::endl << contact1_Q_temp_pos.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact2 pos: " << std::endl << contact2_Q_temp_pos.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact1 ori: " << std::endl << contact1_Q_temp_ori.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact2 ori: " << std::endl << contact2_Q_temp_ori.format(CleanFmt_) << std::endl;
+
+  std::cout << std::endl
+            << "################################################### New iter "
+               "###################################################"
+            << std::endl;
 
   ko_2_.setCenterOfMass(com_, com_d_, com_dd_);
   ko_2_.setIMU(Vector3::Zero(), Vector3::Zero(), centroidIMUPose1_, 0);
@@ -458,25 +472,176 @@ int testContactRestPoseCovariance_2contacts(int errorcode)
   Matrix3 processPos1 = processPos_1_.asDiagonal();
   Matrix3 processPos2 = processPos_2_.asDiagonal();
 
-  ko_2_.setContactProcessCovMat(0, &processPos1);
-  ko_2_.setContactProcessCovMat(1, &processPos2);
+  ko_2_.setContactProcessCovMat(0, &processPos1, &processPos1);
+  ko_2_.setContactProcessCovMat(1, &processPos2, &processPos2);
 
   ko_2_.update();
 
-  Eigen::MatrixXd contact1_Q = Eigen::MatrixXd::Zero(3, 6);
-  contact1_Q.block(0, 0, 3, 3) =
+  Eigen::MatrixXd contact1_Q_pos = Eigen::MatrixXd::Zero(3, 6);
+  contact1_Q_pos.block(0, 0, 3, 3) =
       ko_2_.getEKF().getQ().block(ko_2_.contactIndexTangent(0), ko_2_.contactIndexTangent(0), 3, 3);
-  contact1_Q.block(0, 3, 3, 3) =
+  contact1_Q_pos.block(0, 3, 3, 3) =
       ko_2_.getEKF().getQ().block(ko_2_.contactIndexTangent(0), ko_2_.contactIndexTangent(1), 3, 3);
 
-  Eigen::MatrixXd contact2_Q = Eigen::MatrixXd::Zero(3, 6);
-  contact2_Q.block(0, 0, 3, 3) =
+  Eigen::MatrixXd contact1_Q_ori = Eigen::MatrixXd::Zero(3, 6);
+  contact1_Q_ori.block(0, 0, 3, 3) =
+      ko_2_.getEKF().getQ().block(ko_2_.contactOriIndexTangent(0), ko_2_.contactOriIndexTangent(0), 3, 3);
+  contact1_Q_ori.block(0, 3, 3, 3) =
+      ko_2_.getEKF().getQ().block(ko_2_.contactOriIndexTangent(0), ko_2_.contactOriIndexTangent(1), 3, 3);
+
+  Eigen::MatrixXd contact2_Q_pos = Eigen::MatrixXd::Zero(3, 6);
+  contact2_Q_pos.block(0, 0, 3, 3) =
       ko_2_.getEKF().getQ().block(ko_2_.contactIndexTangent(1), ko_2_.contactIndexTangent(0), 3, 3);
-  contact2_Q.block(0, 3, 3, 3) =
+  contact2_Q_pos.block(0, 3, 3, 3) =
       ko_2_.getEKF().getQ().block(ko_2_.contactIndexTangent(1), ko_2_.contactIndexTangent(1), 3, 3);
 
-  // std::cout << std::endl << "Contact1: " << std::endl << contact1_Q.format(CleanFmt_) << std::endl;
-  // std::cout << std::endl << "Contact2: " << std::endl << contact2_Q.format(CleanFmt_) << std::endl;
+  Eigen::MatrixXd contact2_Q_ori = Eigen::MatrixXd::Zero(3, 6);
+  contact2_Q_ori.block(0, 0, 3, 3) =
+      ko_2_.getEKF().getQ().block(ko_2_.contactOriIndexTangent(1), ko_2_.contactOriIndexTangent(0), 3, 3);
+  contact2_Q_ori.block(0, 3, 3, 3) =
+      ko_2_.getEKF().getQ().block(ko_2_.contactOriIndexTangent(1), ko_2_.contactOriIndexTangent(1), 3, 3);
+
+  Eigen::MatrixXd contacts_Q_pos = Eigen::MatrixXd::Zero(6, 6);
+  contacts_Q_pos.block<3, 6>(0, 0) = contact1_Q_pos;
+  contacts_Q_pos.block<3, 6>(3, 0) = contact2_Q_pos;
+
+  Eigen::MatrixXd contacts_Q_pos_analytic = Eigen::MatrixXd::Zero(6, 6);
+  contacts_Q_pos_analytic(0, 0) = 0.25 * processPos1(0, 0) + 0.25 * processPos2(0, 0);
+  contacts_Q_pos_analytic(0, 3) = -0.25 * processPos1(0, 0) - 0.25 * processPos2(0, 0);
+  contacts_Q_pos_analytic(1, 1) = 0.25 * processPos1(1, 1) + 0.25 * processPos2(1, 1);
+  contacts_Q_pos_analytic(1, 4) = -0.25 * processPos1(1, 1) - 0.25 * processPos2(1, 1);
+  contacts_Q_pos_analytic(2, 2) = 0.25 * processPos1(2, 2) + 0.25 * processPos2(2, 2);
+  contacts_Q_pos_analytic(2, 5) = -0.25 * processPos1(2, 2) - 0.25 * processPos2(2, 2);
+  contacts_Q_pos_analytic(3, 0) = 0.25 * processPos1(0, 0) + 0.25 * processPos2(0, 0);
+  contacts_Q_pos_analytic(3, 3) = -0.25 * processPos1(0, 0) - 0.25 * processPos2(0, 0);
+  contacts_Q_pos_analytic(4, 1) = -0.25 * processPos1(1, 1) - 0.25 * processPos2(1, 1);
+  contacts_Q_pos_analytic(4, 4) = 0.25 * processPos1(1, 1) + 0.25 * processPos2(1, 1);
+  contacts_Q_pos_analytic(5, 2) = -0.25 * processPos1(2, 2) - 0.25 * processPos2(2, 2);
+  contacts_Q_pos_analytic(5, 5) = 0.25 * processPos1(2, 2) + 0.25 * processPos2(2, 2);
+
+  Eigen::MatrixXd contacts_Q_ori = Eigen::MatrixXd::Zero(6, 6);
+  contacts_Q_ori.block<3, 6>(0, 0) = contact1_Q_ori;
+  contacts_Q_ori.block<3, 6>(3, 0) = contact2_Q_ori;
+
+  Eigen::MatrixXd contacts_Q_ori_analytic = Eigen::MatrixXd::Zero(6, 6);
+  contacts_Q_ori_analytic(0, 0) = processPos1(0, 0);
+  contacts_Q_ori_analytic(1, 1) = processPos1(1, 1);
+  contacts_Q_ori_analytic(2, 2) = 0.25 * processPos1(2, 2) + 0.25 * processPos2(2, 2);
+  contacts_Q_ori_analytic(2, 5) = -0.25 * processPos1(2, 2) - 0.25 * processPos2(2, 2);
+  contacts_Q_ori_analytic(3, 3) = processPos2(0, 0);
+  contacts_Q_ori_analytic(4, 4) = processPos2(1, 1);
+  contacts_Q_ori_analytic(5, 2) = -0.25 * processPos1(2, 2) - 0.25 * processPos2(2, 2);
+  contacts_Q_ori_analytic(5, 5) = 0.25 * processPos1(2, 2) + 0.25 * processPos2(2, 2);
+
+  std::cout << std::endl << "Contact1 pos: " << std::endl << contact1_Q_pos.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact2 pos: " << std::endl << contact2_Q_pos.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact1 ori: " << std::endl << contact1_Q_ori.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact2 ori: " << std::endl << contact2_Q_ori.format(CleanFmt_) << std::endl;
+
+  if((contacts_Q_pos - contacts_Q_pos_analytic).sum() > 1e-16)
+  {
+    std::cout << std::endl
+              << "Error, the numerical matrix for the rest position process doesn't match the analytical one."
+              << std::endl;
+    std::cout << std::endl << "contacts_Q_pos: " << std::endl << contacts_Q_pos.format(CleanFmt_) << std::endl;
+    std::cout << std::endl
+              << "contacts_Q_pos_analytic: " << std::endl
+              << contacts_Q_pos_analytic.format(CleanFmt_) << std::endl;
+
+    return errorcode;
+  }
+
+  if((contacts_Q_ori - contacts_Q_ori_analytic).sum() > 1e-16)
+  {
+    std::cout << std::endl << "Error, the numerical matric doesn't match the analytical one." << std::endl;
+    std::cout << std::endl << "contacts_Q_ori: " << std::endl << contacts_Q_ori.format(CleanFmt_) << std::endl;
+    std::cout << std::endl
+              << "contacts_Q_ori_analytic: " << std::endl
+              << contacts_Q_ori_analytic.format(CleanFmt_) << std::endl;
+
+    return errorcode;
+  }
+
+  std::cout << std::endl
+            << "################################################### New iter: we remove the contact 1 "
+               "###################################################"
+            << std::endl;
+
+  /* We remove the last contact to verify that we will have the same result that when we had two contacts */
+
+  // we save this index as it cannot be accessed once the contact is removed
+  Index contact2PosIndex = ko_2_.contactPosIndexTangent(1);
+  Index contact2OriIndex = ko_2_.contactOriIndexTangent(1);
+
+  ko_2_.setCenterOfMass(com_, com_d_, com_dd_);
+  ko_2_.setIMU(Vector3::Zero(), Vector3::Zero(), centroidIMUPose1_, 0);
+
+  ko_2_.setCoMAngularMomentum(angularMomentum_, angularMomentum_d_);
+  ko_2_.setCoMInertiaMatrix(inertiaMatrix_, inertiaMatrix_d_);
+
+  ko_2_.updateContactWithWrenchSensor(Vector6::Zero(), centroidContactPose1_, 0);
+  // we remove the contact 2
+  ko_2_.removeContact(1);
+  ko_2_.update();
+
+  contact1_Q_pos.setZero();
+  contact1_Q_pos.block(0, 0, 3, 3) =
+      ko_2_.getEKF().getQ().block(ko_2_.contactIndexTangent(0), ko_2_.contactIndexTangent(0), 3, 3);
+  contact1_Q_pos.block(0, 3, 3, 3) = ko_2_.getEKF().getQ().block(ko_2_.contactIndexTangent(0), contact2PosIndex, 3, 3);
+
+  contact1_Q_ori.setZero();
+  contact1_Q_ori.block(0, 0, 3, 3) =
+      ko_2_.getEKF().getQ().block(ko_2_.contactOriIndexTangent(0), ko_2_.contactOriIndexTangent(0), 3, 3);
+  contact1_Q_ori.block(0, 3, 3, 3) =
+      ko_2_.getEKF().getQ().block(ko_2_.contactOriIndexTangent(0), contact2OriIndex, 3, 3);
+
+  contact2_Q_pos.setZero();
+  contact2_Q_pos.block(0, 0, 3, 3) = ko_2_.getEKF().getQ().block(contact2PosIndex, ko_2_.contactIndexTangent(0), 3, 3);
+  contact2_Q_pos.block(0, 3, 3, 3) = ko_2_.getEKF().getQ().block(contact2PosIndex, contact2PosIndex, 3, 3);
+
+  contact2_Q_ori.setZero();
+  contact2_Q_ori.block(0, 0, 3, 3) =
+      ko_2_.getEKF().getQ().block(contact2OriIndex, ko_2_.contactOriIndexTangent(0), 3, 3);
+  contact2_Q_ori.block(0, 3, 3, 3) = ko_2_.getEKF().getQ().block(contact2OriIndex, contact2OriIndex, 3, 3);
+
+  std::cout << std::endl << "Contact1: " << std::endl << contact1_Q_pos.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact2: " << std::endl << contact2_Q_pos.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact1: " << std::endl << contact1_Q_ori.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact2: " << std::endl << contact2_Q_ori.format(CleanFmt_) << std::endl;
+
+  Eigen::MatrixXd contact1_Q_pos_analytic = Eigen::MatrixXd::Zero(6, 6);
+  contact1_Q_pos_analytic(0, 0) = processPos1(0, 0);
+  contact1_Q_pos_analytic(1, 1) = processPos1(1, 1);
+  contact1_Q_pos_analytic(2, 2) = processPos1(2, 2);
+
+  Eigen::MatrixXd contact1_Q_ori_analytic = Eigen::MatrixXd::Zero(6, 6);
+  contact1_Q_ori_analytic(0, 0) = processPos1(0, 0);
+  contact1_Q_ori_analytic(1, 1) = processPos1(1, 1);
+  contact1_Q_ori_analytic(2, 2) = processPos1(2, 2);
+
+  if((contact1_Q_pos - contact1_Q_pos_analytic).sum() > 1e-16)
+  {
+    std::cout << std::endl
+              << "Error, the numerical matrix for the rest position process doesn't match the analytical one."
+              << std::endl;
+    std::cout << std::endl << "contact1_Q_pos: " << std::endl << contact1_Q_pos.format(CleanFmt_) << std::endl;
+    std::cout << std::endl
+              << "contact1_Q_pos_analytic: " << std::endl
+              << contact1_Q_pos_analytic.format(CleanFmt_) << std::endl;
+
+    return errorcode;
+  }
+
+  if((contact1_Q_ori - contact1_Q_ori_analytic).sum() > 1e-16)
+  {
+    std::cout << std::endl << "Error, the numerical matric doesn't match the analytical one." << std::endl;
+    std::cout << std::endl << "contact1_Q_ori: " << std::endl << contact1_Q_ori.format(CleanFmt_) << std::endl;
+    std::cout << std::endl
+              << "contact1_Q_ori_analytic: " << std::endl
+              << contact1_Q_ori_analytic.format(CleanFmt_) << std::endl;
+
+    return errorcode;
+  }
 
   return 0;
 }
@@ -552,38 +717,71 @@ int testContactRestPoseCovariance_3contacts(int errorcode)
 
   ko_3_.update();
 
-  Eigen::MatrixXd contact1_Q_temp = Eigen::MatrixXd::Zero(3, 9);
-  contact1_Q_temp.block(0, 0, 3, 3) =
+  Eigen::MatrixXd contact1_Q_pos = Eigen::MatrixXd::Zero(3, 9);
+  contact1_Q_pos.block(0, 0, 3, 3) =
       ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), ko_3_.contactIndexTangent(0), 3, 3);
-  contact1_Q_temp.block(0, 3, 3, 3) =
+  contact1_Q_pos.block(0, 3, 3, 3) =
       ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), ko_3_.contactIndexTangent(1), 3, 3);
-  contact1_Q_temp.block(0, 6, 3, 3) =
-      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), ko_3_.contactIndexTangent(2), 3, 3);
+  contact1_Q_pos.block(0, 6, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), ko_3_.contactPosIndexTangent(2), 3, 3);
 
-  Eigen::MatrixXd contact2_Q_temp = Eigen::MatrixXd::Zero(3, 9);
-  contact2_Q_temp.block(0, 0, 3, 3) =
+  Eigen::MatrixXd contact2_Q_pos = Eigen::MatrixXd::Zero(3, 9);
+  contact2_Q_pos.setZero();
+  contact2_Q_pos.block(0, 0, 3, 3) =
       ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), ko_3_.contactIndexTangent(0), 3, 3);
-  contact2_Q_temp.block(0, 3, 3, 3) =
+  contact2_Q_pos.block(0, 3, 3, 3) =
       ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), ko_3_.contactIndexTangent(1), 3, 3);
-  contact2_Q_temp.block(0, 6, 3, 3) =
-      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), ko_3_.contactIndexTangent(2), 3, 3);
+  contact2_Q_pos.block(0, 6, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), ko_3_.contactPosIndexTangent(2), 3, 3);
 
-  Eigen::MatrixXd contact3_Q_temp = Eigen::MatrixXd::Zero(3, 9);
-  contact3_Q_temp.block(0, 0, 3, 3) =
-      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(2), ko_3_.contactIndexTangent(0), 3, 3);
-  contact3_Q_temp.block(0, 3, 3, 3) =
-      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(2), ko_3_.contactIndexTangent(1), 3, 3);
-  contact3_Q_temp.block(0, 6, 3, 3) =
-      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(2), ko_3_.contactIndexTangent(2), 3, 3);
+  Eigen::MatrixXd contact3_Q_pos = Eigen::MatrixXd::Zero(3, 9);
+  contact3_Q_pos.setZero();
+  contact3_Q_pos.block(0, 0, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactPosIndexTangent(2), ko_3_.contactIndexTangent(0), 3, 3);
+  contact3_Q_pos.block(0, 3, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactPosIndexTangent(2), ko_3_.contactIndexTangent(1), 3, 3);
+  contact3_Q_pos.block(0, 6, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactPosIndexTangent(2), ko_3_.contactPosIndexTangent(2), 3, 3);
 
-  // std::cout << std::endl << "Contact1: " << std::endl << contact1_Q_temp.format(CleanFmt_) << std::endl;
-  // std::cout << std::endl << "Contact2: " << std::endl << contact2_Q_temp.format(CleanFmt_) << std::endl;
-  // std::cout << std::endl << "Contact3: " << std::endl << contact3_Q_temp.format(CleanFmt_) << std::endl;
+  Eigen::MatrixXd contact1_Q_ori = Eigen::MatrixXd::Zero(3, 9);
+  contact1_Q_ori.setZero();
+  contact1_Q_ori.block(0, 0, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(0), ko_3_.contactOriIndexTangent(0), 3, 3);
+  contact1_Q_ori.block(0, 3, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(0), ko_3_.contactOriIndexTangent(1), 3, 3);
+  contact1_Q_ori.block(0, 6, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(0), ko_3_.contactOriIndexTangent(2), 3, 3);
 
-  // std::cout << std::endl
-  //           << "################################################### New iter "
-  //              "###################################################"
-  //           << std::endl;
+  Eigen::MatrixXd contact2_Q_ori = Eigen::MatrixXd::Zero(3, 9);
+  contact2_Q_ori.setZero();
+  contact2_Q_ori.block(0, 0, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(1), ko_3_.contactOriIndexTangent(0), 3, 3);
+  contact2_Q_ori.block(0, 3, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(1), ko_3_.contactOriIndexTangent(1), 3, 3);
+  contact2_Q_ori.block(0, 6, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(1), ko_3_.contactOriIndexTangent(2), 3, 3);
+
+  Eigen::MatrixXd contact3_Q_ori = Eigen::MatrixXd::Zero(3, 9);
+  contact3_Q_ori.setZero();
+  contact3_Q_ori.block(0, 0, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(2), ko_3_.contactIndexTangent(0), 3, 3);
+  contact3_Q_ori.block(0, 3, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(2), ko_3_.contactIndexTangent(1), 3, 3);
+  contact3_Q_ori.block(0, 6, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(2), ko_3_.contactOriIndexTangent(2), 3, 3);
+
+  std::cout << std::endl << "Contact1 pos process: " << std::endl << contact1_Q_pos.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact2 pos process: " << std::endl << contact2_Q_pos.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact3 pos process: " << std::endl << contact3_Q_pos.format(CleanFmt_) << std::endl;
+
+  std::cout << std::endl << "Contact1 ori process: " << std::endl << contact1_Q_ori.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact2 ori process: " << std::endl << contact2_Q_ori.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact3 ori process: " << std::endl << contact3_Q_ori.format(CleanFmt_) << std::endl;
+
+  std::cout << std::endl
+            << "################################################### New iter "
+               "###################################################"
+            << std::endl;
 
   ko_3_.setCenterOfMass(com_, com_d_, com_dd_);
   ko_3_.setIMU(Vector3::Zero(), Vector3::Zero(), centroidIMUPose1_, 0);
@@ -599,49 +797,203 @@ int testContactRestPoseCovariance_3contacts(int errorcode)
   Matrix3 processPos2 = processPos_2_.asDiagonal();
   Matrix3 processPos3 = processPos_3_.asDiagonal();
 
-  ko_3_.setContactProcessCovMat(0, &processPos1);
-  ko_3_.setContactProcessCovMat(1, &processPos2);
-  ko_3_.setContactProcessCovMat(2, &processPos3);
+  ko_3_.setContactProcessCovMat(0, &processPos1, &processPos1);
+  ko_3_.setContactProcessCovMat(1, &processPos2, &processPos2);
+  ko_3_.setContactProcessCovMat(2, &processPos3, &processPos3);
 
   ko_3_.update();
 
-  Eigen::MatrixXd contact1_Q = Eigen::MatrixXd::Zero(3, 9);
-  contact1_Q.block(0, 0, 3, 3) =
+  contact1_Q_pos.setZero();
+  contact1_Q_pos.block(0, 0, 3, 3) =
       ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), ko_3_.contactIndexTangent(0), 3, 3);
-  contact1_Q.block(0, 3, 3, 3) =
+  contact1_Q_pos.block(0, 3, 3, 3) =
       ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), ko_3_.contactIndexTangent(1), 3, 3);
-  contact1_Q.block(0, 6, 3, 3) =
-      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), ko_3_.contactIndexTangent(2), 3, 3);
+  contact1_Q_pos.block(0, 6, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), ko_3_.contactPosIndexTangent(2), 3, 3);
 
-  Eigen::MatrixXd contact2_Q = Eigen::MatrixXd::Zero(3, 9);
-  contact2_Q.block(0, 0, 3, 3) =
+  contact2_Q_pos.setZero();
+  contact2_Q_pos.block(0, 0, 3, 3) =
       ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), ko_3_.contactIndexTangent(0), 3, 3);
-  contact2_Q.block(0, 3, 3, 3) =
+  contact2_Q_pos.block(0, 3, 3, 3) =
       ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), ko_3_.contactIndexTangent(1), 3, 3);
-  contact2_Q.block(0, 6, 3, 3) =
-      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), ko_3_.contactIndexTangent(2), 3, 3);
+  contact2_Q_pos.block(0, 6, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), ko_3_.contactPosIndexTangent(2), 3, 3);
 
-  Eigen::MatrixXd contact3_Q = Eigen::MatrixXd::Zero(3, 9);
-  contact3_Q.block(0, 0, 3, 3) =
-      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(2), ko_3_.contactIndexTangent(0), 3, 3);
-  contact3_Q.block(0, 3, 3, 3) =
-      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(2), ko_3_.contactIndexTangent(1), 3, 3);
-  contact3_Q.block(0, 6, 3, 3) =
-      ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(2), ko_3_.contactIndexTangent(2), 3, 3);
+  contact3_Q_pos.setZero();
+  contact3_Q_pos.block(0, 0, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactPosIndexTangent(2), ko_3_.contactIndexTangent(0), 3, 3);
+  contact3_Q_pos.block(0, 3, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactPosIndexTangent(2), ko_3_.contactIndexTangent(1), 3, 3);
+  contact3_Q_pos.block(0, 6, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactPosIndexTangent(2), ko_3_.contactPosIndexTangent(2), 3, 3);
 
-  // std::cout << std::endl << "Contact1: " << std::endl << contact1_Q.format(CleanFmt_) << std::endl;
-  // std::cout << std::endl << "Contact2: " << std::endl << contact2_Q.format(CleanFmt_) << std::endl;
-  // std::cout << std::endl << "Contact3: " << std::endl << contact3_Q.format(CleanFmt_) << std::endl;
+  contact1_Q_ori.setZero();
+  contact1_Q_ori.block(0, 0, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(0), ko_3_.contactOriIndexTangent(0), 3, 3);
+  contact1_Q_ori.block(0, 3, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(0), ko_3_.contactOriIndexTangent(1), 3, 3);
+  contact1_Q_ori.block(0, 6, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(0), ko_3_.contactOriIndexTangent(2), 3, 3);
 
-  // std::cout << std::endl
-  //           << "################################################### New iter: we remove the contact 2"
-  //              "###################################################"
-  //           << std::endl;
+  contact2_Q_ori.setZero();
+  contact2_Q_ori.block(0, 0, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(1), ko_3_.contactOriIndexTangent(0), 3, 3);
+  contact2_Q_ori.block(0, 3, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(1), ko_3_.contactOriIndexTangent(1), 3, 3);
+  contact2_Q_ori.block(0, 6, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(1), ko_3_.contactOriIndexTangent(2), 3, 3);
+
+  contact3_Q_ori.setZero();
+  contact3_Q_ori.block(0, 0, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(2), ko_3_.contactIndexTangent(0), 3, 3);
+  contact3_Q_ori.block(0, 3, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(2), ko_3_.contactIndexTangent(1), 3, 3);
+  contact3_Q_ori.block(0, 6, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(2), ko_3_.contactOriIndexTangent(2), 3, 3);
+
+  std::cout << std::endl << "Contact1 pos process: " << std::endl << contact1_Q_pos.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact2 pos process: " << std::endl << contact2_Q_pos.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact3 pos process: " << std::endl << contact3_Q_pos.format(CleanFmt_) << std::endl;
+
+  std::cout << std::endl << "Contact1 ori process: " << std::endl << contact1_Q_ori.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact2 ori process: " << std::endl << contact2_Q_ori.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact3 ori process: " << std::endl << contact3_Q_ori.format(CleanFmt_) << std::endl;
+
+  Eigen::MatrixXd contacts_Q_pos = Eigen::MatrixXd::Zero(9, 9);
+  contacts_Q_pos.block<3, 9>(0, 0) = contact1_Q_pos;
+  contacts_Q_pos.block<3, 9>(3, 0) = contact2_Q_pos;
+  contacts_Q_pos.block<3, 9>(6, 0) = contact3_Q_pos;
+
+  Eigen::MatrixXd contacts_Q_pos_analytic = Eigen::MatrixXd::Zero(9, 9);
+  contacts_Q_pos_analytic(0, 0) =
+      (4.0 / 9.0) * processPos1(0, 0) + (1.0 / 9.0) * processPos2(0, 0) + (1.0 / 9.0) * processPos3(0, 0);
+  contacts_Q_pos_analytic(0, 3) =
+      -(1.0 / 9.0) * processPos1(0, 0) - (1.0 / 9.0) * processPos2(0, 0) + (1.0 / 9.0) * processPos3(0, 0);
+  contacts_Q_pos_analytic(0, 6) =
+      -(1.0 / 9.0) * processPos1(0, 0) + (1.0 / 9.0) * processPos2(0, 0) - (1.0 / 9.0) * processPos3(0, 0);
+
+  contacts_Q_pos_analytic(1, 1) =
+      (4.0 / 9.0) * processPos1(1, 1) + (1.0 / 9.0) * processPos2(1, 1) + (1.0 / 9.0) * processPos3(1, 1);
+  contacts_Q_pos_analytic(1, 4) =
+      -(1.0 / 9.0) * processPos1(1, 1) - (1.0 / 9.0) * processPos2(1, 1) + (1.0 / 9.0) * processPos3(1, 1);
+  contacts_Q_pos_analytic(1, 7) =
+      -(1.0 / 9.0) * processPos1(1, 1) + (1.0 / 9.0) * processPos2(1, 1) - (1.0 / 9.0) * processPos3(1, 1);
+
+  contacts_Q_pos_analytic(2, 2) =
+      (4.0 / 9.0) * processPos1(2, 2) + (1.0 / 9.0) * processPos2(2, 2) + (1.0 / 9.0) * processPos3(2, 2);
+  contacts_Q_pos_analytic(2, 5) =
+      -(1.0 / 9.0) * processPos1(2, 2) - (1.0 / 9.0) * processPos2(2, 2) + (1.0 / 9.0) * processPos3(2, 2);
+  contacts_Q_pos_analytic(2, 8) =
+      -(1.0 / 9.0) * processPos1(2, 2) + (1.0 / 9.0) * processPos2(2, 2) - (1.0 / 9.0) * processPos3(2, 2);
+
+  contacts_Q_pos_analytic(3, 0) =
+      -(1.0 / 9.0) * processPos1(0, 0) - (1.0 / 9.0) * processPos2(0, 0) + (1.0 / 9.0) * processPos3(0, 0);
+  contacts_Q_pos_analytic(3, 3) =
+      (4.0 / 9.0) * processPos1(0, 0) + (1.0 / 9.0) * processPos2(0, 0) + (1.0 / 9.0) * processPos3(0, 0);
+  contacts_Q_pos_analytic(3, 6) =
+      (1.0 / 9.0) * processPos1(0, 0) - (1.0 / 9.0) * processPos2(0, 0) - (1.0 / 9.0) * processPos3(0, 0);
+
+  contacts_Q_pos_analytic(4, 1) =
+      -(1.0 / 9.0) * processPos1(1, 1) - (1.0 / 9.0) * processPos2(1, 1) + (1.0 / 9.0) * processPos3(1, 1);
+  contacts_Q_pos_analytic(4, 4) =
+      (4.0 / 9.0) * processPos1(1, 1) + (1.0 / 9.0) * processPos2(1, 1) + (1.0 / 9.0) * processPos3(1, 1);
+  contacts_Q_pos_analytic(4, 7) =
+      (1.0 / 9.0) * processPos1(1, 1) - (1.0 / 9.0) * processPos2(1, 1) - (1.0 / 9.0) * processPos3(1, 1);
+
+  contacts_Q_pos_analytic(5, 2) =
+      -(1.0 / 9.0) * processPos1(2, 2) - (1.0 / 9.0) * processPos2(2, 2) + (1.0 / 9.0) * processPos3(2, 2);
+  contacts_Q_pos_analytic(5, 5) =
+      (4.0 / 9.0) * processPos1(2, 2) + (1.0 / 9.0) * processPos2(2, 2) + (1.0 / 9.0) * processPos3(2, 2);
+  contacts_Q_pos_analytic(5, 8) =
+      (1.0 / 9.0) * processPos1(2, 2) - (1.0 / 9.0) * processPos2(2, 2) - (1.0 / 9.0) * processPos3(2, 2);
+
+  contacts_Q_pos_analytic(6, 0) =
+      -(1.0 / 9.0) * processPos1(0, 0) + (1.0 / 9.0) * processPos2(0, 0) - (1.0 / 9.0) * processPos3(0, 0);
+  contacts_Q_pos_analytic(6, 3) =
+      (1.0 / 9.0) * processPos1(0, 0) - (1.0 / 9.0) * processPos2(0, 0) - (1.0 / 9.0) * processPos3(0, 0);
+  contacts_Q_pos_analytic(6, 6) =
+      (4.0 / 9.0) * processPos1(0, 0) + (1.0 / 9.0) * processPos2(0, 0) + (1.0 / 9.0) * processPos3(0, 0);
+
+  contacts_Q_pos_analytic(7, 1) =
+      -(1.0 / 9.0) * processPos1(1, 1) + (1.0 / 9.0) * processPos2(1, 1) - (1.0 / 9.0) * processPos3(1, 1);
+  contacts_Q_pos_analytic(7, 4) =
+      (1.0 / 9.0) * processPos1(1, 1) - (1.0 / 9.0) * processPos2(1, 1) - (1.0 / 9.0) * processPos3(1, 1);
+  contacts_Q_pos_analytic(7, 7) =
+      (4.0 / 9.0) * processPos1(1, 1) + (1.0 / 9.0) * processPos2(1, 1) + (1.0 / 9.0) * processPos3(1, 1);
+
+  contacts_Q_pos_analytic(8, 2) =
+      -(1.0 / 9.0) * processPos1(2, 2) + (1.0 / 9.0) * processPos2(2, 2) - (1.0 / 9.0) * processPos3(2, 2);
+  contacts_Q_pos_analytic(8, 5) =
+      (1.0 / 9.0) * processPos1(2, 2) - (1.0 / 9.0) * processPos2(2, 2) - (1.0 / 9.0) * processPos3(2, 2);
+  contacts_Q_pos_analytic(8, 8) =
+      (4.0 / 9.0) * processPos1(2, 2) + (1.0 / 9.0) * processPos2(2, 2) + (1.0 / 9.0) * processPos3(2, 2);
+
+  Eigen::MatrixXd contacts_Q_ori = Eigen::MatrixXd::Zero(9, 9);
+  contacts_Q_ori.block<3, 9>(0, 0) = contact1_Q_ori;
+  contacts_Q_ori.block<3, 9>(3, 0) = contact2_Q_ori;
+  contacts_Q_ori.block<3, 9>(6, 0) = contact3_Q_ori;
+
+  Eigen::MatrixXd contacts_Q_ori_analytic = Eigen::MatrixXd::Zero(9, 9);
+  contacts_Q_ori_analytic(0, 0) = processPos1(0, 0);
+  contacts_Q_ori_analytic(1, 1) = processPos1(1, 1);
+  contacts_Q_ori_analytic(2, 2) =
+      (4.0 / 9.0) * processPos1(2, 2) + (1.0 / 9.0) * processPos2(2, 2) + (1.0 / 9.0) * processPos3(2, 2);
+  contacts_Q_ori_analytic(2, 5) =
+      -(1.0 / 9.0) * processPos1(2, 2) - (1.0 / 9.0) * processPos2(2, 2) + (1.0 / 9.0) * processPos3(2, 2);
+  contacts_Q_ori_analytic(2, 8) =
+      -(1.0 / 9.0) * processPos1(2, 2) + (1.0 / 9.0) * processPos2(2, 2) - (1.0 / 9.0) * processPos3(2, 2);
+  contacts_Q_ori_analytic(3, 3) = processPos2(0, 0);
+  contacts_Q_ori_analytic(4, 4) = processPos2(1, 1);
+  contacts_Q_ori_analytic(5, 2) =
+      -(1.0 / 9.0) * processPos1(2, 2) - (1.0 / 9.0) * processPos2(2, 2) + (1.0 / 9.0) * processPos3(2, 2);
+  contacts_Q_ori_analytic(5, 5) =
+      (4.0 / 9.0) * processPos1(2, 2) + (1.0 / 9.0) * processPos2(2, 2) + (1.0 / 9.0) * processPos3(2, 2);
+  contacts_Q_ori_analytic(5, 8) =
+      (1.0 / 9.0) * processPos1(2, 2) - (1.0 / 9.0) * processPos2(2, 2) - (1.0 / 9.0) * processPos3(2, 2);
+  contacts_Q_ori_analytic(6, 6) = processPos3(0, 0);
+  contacts_Q_ori_analytic(7, 7) = processPos3(1, 1);
+  contacts_Q_ori_analytic(8, 2) =
+      -(1.0 / 9.0) * processPos1(2, 2) + (1.0 / 9.0) * processPos2(2, 2) - (1.0 / 9.0) * processPos3(2, 2);
+  contacts_Q_ori_analytic(8, 5) =
+      (1.0 / 9.0) * processPos1(2, 2) - (1.0 / 9.0) * processPos2(2, 2) - (1.0 / 9.0) * processPos3(2, 2);
+  contacts_Q_ori_analytic(8, 8) =
+      (4.0 / 9.0) * processPos1(2, 2) + (1.0 / 9.0) * processPos2(2, 2) + (1.0 / 9.0) * processPos3(2, 2);
+
+  if((contacts_Q_pos - contacts_Q_pos_analytic).sum() > 1e-16)
+  {
+    std::cout << std::endl
+              << "Error, the numerical matrix for the rest position process doesn't match the analytical one."
+              << std::endl;
+    std::cout << std::endl << "contacts_Q_pos: " << std::endl << contacts_Q_pos.format(CleanFmt_) << std::endl;
+    std::cout << std::endl
+              << "contacts_Q_pos_analytic: " << std::endl
+              << contacts_Q_pos_analytic.format(CleanFmt_) << std::endl;
+
+    return errorcode;
+  }
+  if((contacts_Q_ori - contacts_Q_ori_analytic).sum() > 1e-16)
+  {
+    std::cout << std::endl
+              << "Error, the numerical matrix for the rest orientation process doesn't match the analytical one."
+              << std::endl;
+    std::cout << std::endl << "contacts_Q_ori: " << std::endl << contacts_Q_ori.format(CleanFmt_) << std::endl;
+    std::cout << std::endl
+              << "contacts_Q_ori_analytic: " << std::endl
+              << contacts_Q_ori_analytic.format(CleanFmt_) << std::endl;
+
+    return errorcode;
+  }
+
+  std::cout << std::endl
+            << "################################################### New iter: we remove the contact 2 "
+               "###################################################"
+            << std::endl;
 
   /* We remove the last contact to verify that we will have the same result that when we had two contacts */
 
   // we save this index as it cannot be accessed once the contact is removed
-  Index contact2Index = ko_3_.contactIndexTangent(2);
+  Index contact2IndexPos = ko_3_.contactPosIndexTangent(2);
+  Index contact2IndexOri = ko_3_.contactOriIndexTangent(2);
 
   ko_3_.setCenterOfMass(com_, com_d_, com_dd_);
   ko_3_.setIMU(Vector3::Zero(), Vector3::Zero(), centroidIMUPose1_, 0);
@@ -655,28 +1007,110 @@ int testContactRestPoseCovariance_3contacts(int errorcode)
   ko_3_.removeContact(2);
   ko_3_.update();
 
-  contact1_Q.setZero();
-  contact1_Q.block(0, 0, 3, 3) =
+  contact1_Q_pos.setZero();
+  contact1_Q_pos.block(0, 0, 3, 3) =
       ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), ko_3_.contactIndexTangent(0), 3, 3);
-  contact1_Q.block(0, 3, 3, 3) =
+  contact1_Q_pos.block(0, 3, 3, 3) =
       ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), ko_3_.contactIndexTangent(1), 3, 3);
-  contact1_Q.block(0, 6, 3, 3) = ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), contact2Index, 3, 3);
+  contact1_Q_pos.block(0, 6, 3, 3) = ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(0), contact2IndexPos, 3, 3);
 
-  contact2_Q.setZero();
-  contact2_Q.block(0, 0, 3, 3) =
+  contact2_Q_pos.setZero();
+  contact2_Q_pos.block(0, 0, 3, 3) =
       ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), ko_3_.contactIndexTangent(0), 3, 3);
-  contact2_Q.block(0, 3, 3, 3) =
+  contact2_Q_pos.block(0, 3, 3, 3) =
       ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), ko_3_.contactIndexTangent(1), 3, 3);
-  contact2_Q.block(0, 6, 3, 3) = ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), contact2Index, 3, 3);
+  contact2_Q_pos.block(0, 6, 3, 3) = ko_3_.getEKF().getQ().block(ko_3_.contactIndexTangent(1), contact2IndexPos, 3, 3);
 
-  contact3_Q.setZero();
-  contact3_Q.block(0, 0, 3, 3) = ko_3_.getEKF().getQ().block(contact2Index, ko_3_.contactIndexTangent(0), 3, 3);
-  contact3_Q.block(0, 3, 3, 3) = ko_3_.getEKF().getQ().block(contact2Index, ko_3_.contactIndexTangent(1), 3, 3);
-  contact3_Q.block(0, 6, 3, 3) = ko_3_.getEKF().getQ().block(contact2Index, contact2Index, 3, 3);
+  contact3_Q_pos.setZero();
+  contact3_Q_pos.block(0, 0, 3, 3) = ko_3_.getEKF().getQ().block(contact2IndexPos, ko_3_.contactIndexTangent(0), 3, 3);
+  contact3_Q_pos.block(0, 3, 3, 3) = ko_3_.getEKF().getQ().block(contact2IndexPos, ko_3_.contactIndexTangent(1), 3, 3);
+  contact3_Q_pos.block(0, 6, 3, 3) = ko_3_.getEKF().getQ().block(contact2IndexPos, contact2IndexPos, 3, 3);
 
-  // std::cout << std::endl << "Contact1: " << std::endl << contact1_Q.format(CleanFmt_) << std::endl;
-  // std::cout << std::endl << "Contact2: " << std::endl << contact2_Q.format(CleanFmt_) << std::endl;
-  // std::cout << std::endl << "Contact3: " << std::endl << contact3_Q.format(CleanFmt_) << std::endl;
+  contact1_Q_ori.setZero();
+  contact1_Q_ori.block(0, 0, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(0), ko_3_.contactOriIndexTangent(0), 3, 3);
+  contact1_Q_ori.block(0, 3, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(0), ko_3_.contactOriIndexTangent(1), 3, 3);
+  contact1_Q_ori.block(0, 6, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(0), contact2IndexOri, 3, 3);
+
+  contact2_Q_ori.setZero();
+  contact2_Q_ori.block(0, 0, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(1), ko_3_.contactOriIndexTangent(0), 3, 3);
+  contact2_Q_ori.block(0, 3, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(1), ko_3_.contactOriIndexTangent(1), 3, 3);
+  contact2_Q_ori.block(0, 6, 3, 3) =
+      ko_3_.getEKF().getQ().block(ko_3_.contactOriIndexTangent(1), contact2IndexOri, 3, 3);
+
+  contact3_Q_ori.setZero();
+  contact3_Q_ori.block(0, 0, 3, 3) = ko_3_.getEKF().getQ().block(contact2IndexOri, ko_3_.contactIndexTangent(0), 3, 3);
+  contact3_Q_ori.block(0, 3, 3, 3) = ko_3_.getEKF().getQ().block(contact2IndexOri, ko_3_.contactIndexTangent(1), 3, 3);
+  contact3_Q_ori.block(0, 6, 3, 3) = ko_3_.getEKF().getQ().block(contact2IndexOri, contact2IndexOri, 3, 3);
+
+  std::cout << std::endl << "Contact1 pos process: " << std::endl << contact1_Q_pos.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact2 pos process: " << std::endl << contact2_Q_pos.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact3 pos process: " << std::endl << contact3_Q_pos.format(CleanFmt_) << std::endl;
+
+  std::cout << std::endl << "Contact1 ori process: " << std::endl << contact1_Q_ori.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact2 ori process: " << std::endl << contact2_Q_ori.format(CleanFmt_) << std::endl;
+  std::cout << std::endl << "Contact3 ori process: " << std::endl << contact3_Q_ori.format(CleanFmt_) << std::endl;
+
+  Eigen::MatrixXd contacts_Q_pos_bis = Eigen::MatrixXd::Zero(6, 6);
+  contacts_Q_pos_bis.block<3, 6>(0, 0) = contact1_Q_pos;
+  contacts_Q_pos_bis.block<3, 6>(3, 0) = contact2_Q_pos;
+
+  Eigen::MatrixXd contacts_Q_pos_analytic_bis = Eigen::MatrixXd::Zero(6, 6);
+  contacts_Q_pos_analytic_bis(0, 0) = 0.25 * processPos1(0, 0) + 0.25 * processPos2(0, 0);
+  contacts_Q_pos_analytic_bis(0, 3) = -0.25 * processPos1(0, 0) - 0.25 * processPos2(0, 0);
+  contacts_Q_pos_analytic_bis(1, 1) = 0.25 * processPos1(1, 1) + 0.25 * processPos2(1, 1);
+  contacts_Q_pos_analytic_bis(1, 4) = -0.25 * processPos1(1, 1) - 0.25 * processPos2(1, 1);
+  contacts_Q_pos_analytic_bis(2, 2) = 0.25 * processPos1(2, 2) + 0.25 * processPos2(2, 2);
+  contacts_Q_pos_analytic_bis(2, 5) = -0.25 * processPos1(2, 2) - 0.25 * processPos2(2, 2);
+  contacts_Q_pos_analytic_bis(3, 0) = 0.25 * processPos1(0, 0) + 0.25 * processPos2(0, 0);
+  contacts_Q_pos_analytic_bis(3, 3) = -0.25 * processPos1(0, 0) - 0.25 * processPos2(0, 0);
+  contacts_Q_pos_analytic_bis(4, 1) = -0.25 * processPos1(1, 1) - 0.25 * processPos2(1, 1);
+  contacts_Q_pos_analytic_bis(4, 4) = 0.25 * processPos1(1, 1) + 0.25 * processPos2(1, 1);
+  contacts_Q_pos_analytic_bis(5, 2) = -0.25 * processPos1(2, 2) - 0.25 * processPos2(2, 2);
+  contacts_Q_pos_analytic_bis(5, 5) = 0.25 * processPos1(2, 2) + 0.25 * processPos2(2, 2);
+
+  Eigen::MatrixXd contacts_Q_ori_bis = Eigen::MatrixXd::Zero(6, 6);
+  contacts_Q_ori_bis.block<3, 6>(0, 0) = contact1_Q_ori;
+  contacts_Q_ori_bis.block<3, 6>(3, 0) = contact2_Q_ori;
+
+  Eigen::MatrixXd contacts_Q_ori_analytic_bis = Eigen::MatrixXd::Zero(6, 6);
+  contacts_Q_ori_analytic_bis(0, 0) = processPos1(0, 0);
+  contacts_Q_ori_analytic_bis(1, 1) = processPos1(1, 1);
+  contacts_Q_ori_analytic_bis(2, 2) = 0.25 * processPos1(2, 2) + 0.25 * processPos2(2, 2);
+  contacts_Q_ori_analytic_bis(2, 5) = -0.25 * processPos1(2, 2) - 0.25 * processPos2(2, 2);
+  contacts_Q_ori_analytic_bis(3, 3) = processPos2(0, 0);
+  contacts_Q_ori_analytic_bis(4, 4) = processPos2(1, 1);
+  contacts_Q_ori_analytic_bis(5, 2) = -0.25 * processPos1(2, 2) - 0.25 * processPos2(2, 2);
+  contacts_Q_ori_analytic_bis(5, 5) = 0.25 * processPos1(2, 2) + 0.25 * processPos2(2, 2);
+
+  if((contacts_Q_pos_bis - contacts_Q_pos_analytic_bis).sum() > 1e-16)
+  {
+    std::cout << std::endl
+              << "Error, the numerical matrix for the rest position process doesn't match the analytical one."
+              << std::endl;
+    std::cout << std::endl << "contacts_Q_pos_bis: " << std::endl << contacts_Q_pos_bis.format(CleanFmt_) << std::endl;
+    std::cout << std::endl
+              << "contacts_Q_pos_analytic_bis: " << std::endl
+              << contacts_Q_pos_analytic_bis.format(CleanFmt_) << std::endl;
+
+    return errorcode;
+  }
+  if((contacts_Q_ori_bis - contacts_Q_ori_analytic_bis).sum() > 1e-16)
+  {
+    std::cout << std::endl
+              << "Error, the numerical matrix for the rest orientation process doesn't match the analytical one."
+              << std::endl;
+    std::cout << std::endl << "contacts_Q_ori_bis: " << std::endl << contacts_Q_ori_bis.format(CleanFmt_) << std::endl;
+    std::cout << std::endl
+              << "contacts_Q_ori_analytic_bis: " << std::endl
+              << contacts_Q_ori_analytic_bis.format(CleanFmt_) << std::endl;
+
+    return errorcode;
+  }
 
   return 0;
 }
@@ -686,9 +1120,9 @@ int main()
 
   int returnVal;
 
-  if((returnVal = testKineticsObserverCodeAccessor(3)))
+  if((returnVal = testKineticsObserverCodeAccessor(1)))
   {
-    std::cout << "Kinetics Observer test failed, code : 3" << std::endl;
+    std::cout << "Kinetics Observer test failed, code : 1" << std::endl;
     return returnVal;
   }
   else
@@ -696,9 +1130,9 @@ int main()
     std::cout << "Kinetics Observer test succeeded" << std::endl;
   }
 
-  if((returnVal = testContactRestPoseCovariance_1contact(4)))
+  if((returnVal = testContactRestPoseCovariance_1contact(2)))
   {
-    std::cout << "testContactRestPoseCovariance_1contact failed, code : 4" << std::endl;
+    std::cout << "testContactRestPoseCovariance_1contact failed, code : 2" << std::endl;
     return returnVal;
   }
   else
@@ -706,9 +1140,9 @@ int main()
     std::cout << "testContactRestPoseCovariance_1contact succeeded" << std::endl;
   }
 
-  if((returnVal = testContactRestPoseCovariance_2contacts(4)))
+  if((returnVal = testContactRestPoseCovariance_2contacts(3)))
   {
-    std::cout << "testContactRestPoseCovariance_2contacts failed, code : 4" << std::endl;
+    std::cout << "testContactRestPoseCovariance_2contacts failed, code : 3" << std::endl;
     return returnVal;
   }
   else

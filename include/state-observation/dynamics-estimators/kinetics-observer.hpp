@@ -1090,6 +1090,8 @@ protected:
 
     // process covariance associated to the rest position of the contact.
     Matrix3 restPosProcessCovMat;
+    // process covariance associated to the rest orientation of the contact.
+    Matrix3 restOriProcessCovMat;
 
     Matrix3 linearStiffness; /// linear stiffness associated to the contact, used in the visco-elastic model
     Matrix3 linearDamping; /// linear damping associated to the contact, used in the visco-elastic model
@@ -1416,8 +1418,10 @@ protected:
 
   // indicates if a contact has been added or removed since the last iteration
   bool contactsChanged_;
-  // indicates if a contact's process covariance on the rest pose has been modified since the last iteration
+  // indicates if a contact's process covariance on the rest position has been modified since the last iteration
   bool contactRestPosProcessChanged_;
+  // indicates if a contact's process covariance on the rest orientation has been modified since the last iteration
+  bool contactRestOriProcessChanged_;
 
   /// function to call before adding any measurement
   /// detects if there is a new estimation beginning and then
@@ -1598,6 +1602,8 @@ protected:
   // simpler way, it allows the contacts rest position to move slightly over time, but we don't allow their average to
   // move, thus preventing drift.
   std::vector<Eigen::MatrixXd> m_matrices_;
+  // similar to m_matrices, but for the process on the rest orientation of the contacts.
+  std::vector<Eigen::MatrixXd> m_prime_matrices_;
 
   /// default derivation steps
   static const double defaultdx;
