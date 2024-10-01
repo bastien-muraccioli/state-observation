@@ -550,7 +550,7 @@ public:
   ///
   /// @param contactNbr The contact number id
   /// @return Kinematics The pose
-  Kinematics getContactPosition(Index contactNbr) const;
+  Kinematics getContactPose(Index contactNbr) const;
 
   /// @brief Get the Unmodeled External Wrench (requires setWithUnmodeledWrench() to true before to update())
   /// @details In the presence of unmodeled and unmeasured external forces and moments, the dynamics of the robot
@@ -1245,23 +1245,23 @@ public:
   /// @return Vector6
   Vector6 getCentroidContactWrench(Index numContact) const;
 
-  /// @brief Returns the pose of the contact in the centroid frame, given as an input when updating the contact
-  /// (obtained from its pose in the user frame).
+  /// @brief Returns the kinematics of the contact in the centroid frame, given as an input when updating the contact
+  /// (obtained from its kinematics in the user frame).
   /// @return Kinematics
-  Kinematics getCentroidContactInputPose(Index numContact) const;
+  Kinematics getCentroidContactInputKine(Index numContact) const;
 
-  /// @brief Returns the pose of the contact in the world frame, obtained from the state pose of the centroid in the
-  /// world frame.
+  /// @brief Returns the kinematics of the contact in the world frame, obtained from the state kinematics of the
+  /// centroid in the world frame.
   /// @return Kinematics
-  Kinematics getWorldContactPoseFromCentroid(Index numContact) const;
+  Kinematics getWorldContactKineFromCentroid(Index numContact) const;
 
-  /// @brief Returns the estimated rest pose of the contact in the world frame.
+  /// @brief Returns the estimated rest kinematics of the contact in the world frame.
   /// @return Kinematics
   Kinematics getContactStateRestKinematics(Index numContact) const;
 
-  /// @brief Returns the pose of the contact in the user frame, given as an input when updating the contact.
+  /// @brief Returns the kinematics of the contact in the user frame, given as an input when updating the contact.
   /// @return Kinematics
-  Kinematics getUserContactInputPose(Index numContact) const;
+  Kinematics getUserContactInputKine(Index numContact) const;
 
   /// @brief Get the measurement index of the required IMU : allows to access its corresponding measurements in the
   /// measurement vector for example

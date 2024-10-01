@@ -6,7 +6,6 @@
  */
 
 #include <state-observation/dynamics-estimators/kinetics-observer.hpp>
-
 #ifndef NDEBUG
 #  include <iostream>
 #endif
@@ -505,7 +504,7 @@ Vector6 KineticsObserver::getContactWrench(Index contactNbr) const
   return worldCentroidStateVector_.segment<sizeWrench>(contactWrenchIndex(contactNbr));
 }
 
-kine::Kinematics KineticsObserver::getContactPosition(Index contactNbr) const
+kine::Kinematics KineticsObserver::getContactPose(Index contactNbr) const
 {
   return Kinematics(worldCentroidStateVector_.segment<sizeStateKine>(contactKineIndex(contactNbr)), flagsContactKine);
 }
@@ -2897,18 +2896,18 @@ Vector6 KineticsObserver::getCentroidContactWrench(Index numContact) const
   return centroidContactWrench;
 }
 
-kine::Kinematics KineticsObserver::getCentroidContactInputPose(Index numContact) const
+kine::Kinematics KineticsObserver::getCentroidContactInputKine(Index numContact) const
 {
   return contacts_.at(static_cast<size_t>(numContact)).centroidContactKine;
 }
 
-kine::Kinematics KineticsObserver::getWorldContactPoseFromCentroid(Index numContact) const
+kine::Kinematics KineticsObserver::getWorldContactKineFromCentroid(Index numContact) const
 {
-  BOOST_ASSERT(contacts_.at(static_cast<size_t>(numContact)).isSet() "This contact is not set.");
-  Kinematics worldFkContactPose;
-  worldFkContactPose.setToProductNoAlias(Kinematics(worldCentroidStateKinematics_),
+  BOOST_ASSERT(contacts_.at(static_cast<size_t>(numContact)).isSet && "This contact is not set.");
+  Kinematics worldFkContactKine;
+  worldFkContactKine.setToProductNoAlias(Kinematics(worldCentroidStateKinematics_),
                                          contacts_.at(static_cast<size_t>(numContact)).centroidContactKine);
-  return worldFkContactPose;
+  return worldFkContactKine;
 }
 
 kine::Kinematics KineticsObserver::getContactStateRestKinematics(Index numContact) const
@@ -2916,7 +2915,7 @@ kine::Kinematics KineticsObserver::getContactStateRestKinematics(Index numContac
   return contacts_.at(static_cast<size_t>(numContact)).worldRestPose;
 }
 
-kine::Kinematics KineticsObserver::getUserContactInputPose(Index numContact) const
+kine::Kinematics KineticsObserver::getUserContactInputKine(Index numContact) const
 {
   return contacts_.at(static_cast<size_t>(numContact)).userContactKine;
 }
