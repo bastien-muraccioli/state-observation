@@ -4,7 +4,6 @@
  *
  * National Institute of Advanced Industrial Science and Technology (AIST)
  */
-
 #include <state-observation/dynamics-estimators/kinetics-observer.hpp>
 #ifndef NDEBUG
 #  include <iostream>
@@ -1016,6 +1015,8 @@ void KineticsObserver::updateContactPosProcessCovariance()
         {
           if(contact2_it->isSet)
           {
+            processCovMat.block(contactOriIndexTangent(contact1_it), contactOriIndexTangent(contact2_it), 3, 3)
+                .setZero();
             processCovMat(contactOriIndexTangent(contact1_it) + 2, contactOriIndexTangent(contact2_it) + 2) =
                 covM_prime_v((i * 3) + 2, (j * 3) + 2);
             j++;

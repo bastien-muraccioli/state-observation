@@ -553,7 +553,8 @@ int testContactRestPoseCovariance_2contacts(int errorcode)
 
   if((contacts_Q_ori - contacts_Q_ori_analytic).sum() > 1e-16)
   {
-    std::cout << std::endl << "Error, the numerical matric doesn't match the analytical one." << std::endl;
+    std::cout << std::endl
+              << "Error, the numerical matrix for the orientation doesn't match the analytical one." << std::endl;
     std::cout << std::endl << "contacts_Q_ori: " << std::endl << contacts_Q_ori.format(CleanFmt_) << std::endl;
     std::cout << std::endl
               << "contacts_Q_ori_analytic: " << std::endl
@@ -634,7 +635,8 @@ int testContactRestPoseCovariance_2contacts(int errorcode)
 
   if((contact1_Q_ori - contact1_Q_ori_analytic).sum() > 1e-16)
   {
-    std::cout << std::endl << "Error, the numerical matric doesn't match the analytical one." << std::endl;
+    std::cout << std::endl
+              << "Error, the numerical matrix for the orientation doesn't match the analytical one." << std::endl;
     std::cout << std::endl << "contact1_Q_ori: " << std::endl << contact1_Q_ori.format(CleanFmt_) << std::endl;
     std::cout << std::endl
               << "contact1_Q_ori_analytic: " << std::endl
