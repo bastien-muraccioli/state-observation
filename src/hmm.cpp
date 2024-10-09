@@ -20,8 +20,8 @@ namespace stateObservation
         n_obs = m;
         m_obs = p;
 
-        O_t = new Vector(m, 1);
-        O_p_t = new Matrix(m, p);
+        O_t.resize(m, 1);
+        O_p_t.resize(m, p);
     }
 
 
@@ -51,11 +51,11 @@ namespace stateObservation
             hmm_state state_i = states[i];
             string name = state_i.get_label();
 
-            alpha_t[name] = state_i.get_emission(*O_t);
+            alpha_t[name] = state_i.get_emission(O_t);
             float sum=0;
             for (size_t j=0; j<n_state; j++){
                 string name_j = states[j].get_label();
-                sum += state_i.get_transition(name_j, *O_p_t)*alpha_t_m_1[name_j];
+                sum += state_i.get_transition(name_j, O_p_t)*alpha_t_m_1[name_j];
             }
             alpha_t[name] *= sum;  
         }
@@ -80,9 +80,9 @@ namespace stateObservation
 
         TimeIndex k = x_.getTime(); 
 
-        *O_t = getMeasurement(k+1);
-        O_p_t->block(0, 0, n_obs, m_obs-1) = O_p_t->block(0, 1, n_obs, m_obs); //m_obs-1 is the lengh of the sequence who started at index 1
-        O_p_t->col(m_obs-1) = *O_t; //here m_obs-1 is the index of the last column
+        O_t = getMeasurement(k+1);
+        O_p_t.block(0, 0, n_obs, m_obs-1) = O_p_t.block(0, 1, n_obs, m_obs); //m_obs-1 is the lengh of the sequence who started at index 1
+        O_p_t.col(m_obs-1) = O_t; //here m_obs-1 is the index of the last column
 
         calc_next_alpha();
         calc_P();

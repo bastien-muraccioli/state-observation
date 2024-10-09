@@ -38,11 +38,10 @@ namespace stateObservation {
             hmm(const int n, const int m, const int p, const std::vector<std::string>& labels, const Emission& emission, const Transition& transition);
 
 
-        protected:
-            virtual ObserverBase::StateVector oneStepEstimation_();
-            virtual void setMeasurment()=0;
-
             void setEmTr(const std::vector<std::string>& labels, const Emission& emission, const Transition& transition);
+        protected:
+            ObserverBase::StateVector oneStepEstimation_() override;
+
             
             size_t n_state;
        
@@ -62,8 +61,8 @@ namespace stateObservation {
 
             ObserverBase::StateVector X;
 
-            Vector* O_t;
-            Matrix* O_p_t;
+            Vector O_t;
+            Matrix O_p_t;
     };
 }
 #endif
