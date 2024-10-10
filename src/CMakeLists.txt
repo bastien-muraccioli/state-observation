@@ -24,8 +24,6 @@ set(HEADERS
     ${PROJECT_INCLUDE_DIR}/observer/linear-kalman-filter.hpp
     ${PROJECT_INCLUDE_DIR}/observer/observer-base.hpp
     ${PROJECT_INCLUDE_DIR}/observer/zero-delay-observer.hpp
-    ${PROJECT_INCLUDE_DIR}/observer/hmm.hpp
-    ${PROJECT_INCLUDE_DIR}/observer/hmm-contact.hpp
     ${PROJECT_INCLUDE_DIR}/sensors-simulation/sensor-base.hpp
     ${PROJECT_INCLUDE_DIR}/sensors-simulation/algebraic-sensor.hpp
     ${PROJECT_INCLUDE_DIR}/sensors-simulation/accelerometer-gyrometer.hpp
@@ -110,10 +108,7 @@ set(SRC
     kinetics-observer.cpp
     lipm-dcm-estimator.cpp
     unidim-lipm-dcm-estimator.cpp
-    zmp-tracking-gain-estimator.cpp
-    hmm.cpp
-    hmm-contact.cpp)
-
+    zmp-tracking-gain-estimator.cpp)
 
 set(LIBRARY_NAME ${PROJECT_NAME})
 add_library(${LIBRARY_NAME} SHARED ${SRC} ${HEADERS})
