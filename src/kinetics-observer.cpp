@@ -4,9 +4,7 @@
  *
  * National Institute of Advanced Industrial Science and Technology (AIST)
  */
-#include <Eigen/Eigenvalues>
 
-#include <iostream>
 #include <state-observation/dynamics-estimators/kinetics-observer.hpp>
 #ifndef NDEBUG
 #  include <iostream>
@@ -390,13 +388,11 @@ void KineticsObserver::setContactProcessCovMat(Index contactNbr,
 
 const Vector & KineticsObserver::update()
 {
-  std::cout << std::endl << "k: " << k_est_;
-  std::cout << std::endl << "k_data_: " << k_data_;
 
   if(k_est_ != k_data_)
   {
     updateMeasurements();
-    updateContactPoseProcessCovariance();
+    updateContactPoseCovariances();
 
     ekf_.updateStateAndMeasurementPrediction();
 
@@ -901,12 +897,9 @@ void KineticsObserver::setContactWrenchSensorDefaultCovarianceMatrix(const Matri
   contactWrenchSensorCovMatDefault_ = wrenchSensorCovMat;
 }
 
-void KineticsObserver::updateContactPoseProcessCovariance()
+void KineticsObserver::updateContactPoseCovariances()
 {
   Index nbCurrentContacts = getNumberOfSetContacts();
-
-  std::cout << std::endl << "nbCurrentContacts: " << getNumberOfSetContacts() << std::endl;
-  std::cout << std::endl << "nb_prevContacts_: " << nb_prevContacts_ << std::endl;
 
   if(((getNumberOfSetContacts() == nb_prevContacts_) && !contactRestPosProcessChanged_
       && !contactRestOriProcessChanged_)
@@ -919,43 +912,32 @@ void KineticsObserver::updateContactPoseProcessCovariance()
 
   if(nbCurrentContacts < nb_prevContacts_)
   {
-    std::cout << std::endl << "WESH2" << std::endl;
     Matrix stateCovMat = ekf_.getStateCovariance();
     Matrix P_prime = stateCovMat.triangularView<Eigen::Lower>();
 
-    std::cout << std::endl << "eigenValues before : " << std::endl << stateCovMat.eigenvalues() << std::endl;
     std::vector<Index> removedIndexes;
     for(Index removedContactIndex : removedContacts_)
     {
-      std::cout << std::endl << "removedContactIndex: " << removedContactIndex << std::endl;
-      std::cout << std::endl << "removedIndexes: ";
       for(Index s = 0; s < sizeContactTangent; s++)
       {
         removedIndexes.push_back(contactIndexTangent(removedContactIndex) + s);
-        std::cout << std::endl << contactIndexTangent(removedContactIndex) + s;
-        std::cout << ", ";
       }
     }
-    Eigen::IOFormat CleanFmt_(4, 0, ", ", "\n", "[", "]");
     for(Index removedIndex : removedIndexes)
     {
       for(Index i = 0; i < stateCovMat.rows(); i++)
       {
-        Eigen::MatrixXd Pbefore = P_prime;
         Index rowsUntilEnd = P_prime.rows() - i - 1;
-        if(std::find(removedIndexes.begin(), removedIndexes.end(), i) == removedIndexes.end())
+        if(std::find(removedIndexes.begin(), removedIndexes.end(), i) == removedIndexes.end()
+           && P_prime(i, removedIndex) < 0.0)
         {
           double P_bar_i_i = pow(P_prime(i, removedIndex), 2) / P_prime(removedIndex, removedIndex);
           double coeff = sqrt((P_prime(i, i) - P_bar_i_i) / P_prime(i, i));
-          std::cout << std::endl << "coeff : " << std::endl << coeff << std::endl;
           if(!std::isnan(P_bar_i_i) && !std::isnan(coeff))
           {
             P_prime.block(i, 0, 1, i) *= coeff;
             P_prime.block(i + 1, i, rowsUntilEnd, 1) *= coeff;
             P_prime(i, i) -= P_bar_i_i;
-            // std::cout << std::endl
-            //           << "P diff final: " << std::endl
-            //           << (P_prime - Pbefore).format(CleanFmt_) << std::endl;
           }
         }
       }
@@ -966,10 +948,7 @@ void KineticsObserver::updateContactPoseProcessCovariance()
       processCovMat.block(removedIndex, 0, 1, processCovMat.cols()).setZero();
       processCovMat.block(0, removedIndex, processCovMat.rows(), 1).setZero();
     }
-    // std::cout << std::endl << "P before: " << std::endl << P_prime.format(CleanFmt_) << std::endl;
     P_prime = P_prime.selfadjointView<Eigen::Lower>();
-    // std::cout << std::endl << "P after: " << std::endl << P_prime.format(CleanFmt_) << std::endl;
-    // std::cout << std::endl << "P diff final: " << std::endl << P_prime.format(CleanFmt_) << std::endl;
     ekf_.setStateCovariance(P_prime);
   }
 
@@ -980,9 +959,6 @@ void KineticsObserver::updateContactPoseProcessCovariance()
     {
       if(contact_it->isSet)
       {
-        // processCovMat.block(contactPosIndexTangent(contact_it), contactPosIndexTangent(contact_it),
-        // sizePosTangent,
-        //                     sizePosTangent) = contact_it->restPosProcessCovMat;
         processCovMat
             .block(contactPosIndexTangent(contact_it), contactPosIndexTangent(contact_it), sizePosTangent,
                    sizePosTangent)
