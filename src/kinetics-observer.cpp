@@ -4,6 +4,9 @@
  *
  * National Institute of Advanced Industrial Science and Technology (AIST)
  */
+#include <Eigen/Eigenvalues>
+
+#include <iostream>
 #include <state-observation/dynamics-estimators/kinetics-observer.hpp>
 #ifndef NDEBUG
 #  include <iostream>
@@ -364,13 +367,13 @@ void KineticsObserver::setContactProcessCovMat(Index contactNbr,
   Matrix processCovMat = ekf_.getQ();
   if(restPosProcessCov != nullptr)
   {
-    // no need to change Q here as it will be recomputed in updateContactPosProcessCovariance()
+    // no need to change Q here as it will be recomputed in updateContactPoseProcessCovariance()
     contactRestPosProcessChanged_ = true;
     contacts_[contactNbr].restPosProcessCovMat = *restPosProcessCov;
   }
   if(restOriProcessCov != nullptr)
   {
-    // no need to change Q here as it will be recomputed in updateContactPosProcessCovariance()
+    // no need to change Q here as it will be recomputed in updateContactPoseProcessCovariance()
     contactRestOriProcessChanged_ = true;
     contacts_[contactNbr].restOriProcessCovMat = *restOriProcessCov;
   }
@@ -387,10 +390,13 @@ void KineticsObserver::setContactProcessCovMat(Index contactNbr,
 
 const Vector & KineticsObserver::update()
 {
+  std::cout << std::endl << "k: " << k_est_;
+  std::cout << std::endl << "k_data_: " << k_data_;
+
   if(k_est_ != k_data_)
   {
     updateMeasurements();
-    updateContactPosProcessCovariance();
+    updateContactPoseProcessCovariance();
 
     ekf_.updateStateAndMeasurementPrediction();
 
@@ -419,11 +425,8 @@ const Vector & KineticsObserver::update()
       oldWorldCentroidStateVector_ = worldCentroidStateVector_;
     }
 
-    ++k_est_; // the timestamp of the state we estimated
-
-    worldCentroidStateKinematics_.reset();
-
     // update of worldCentroidStateKinematics_ and of the contacts pose with the newly estimated state
+    worldCentroidStateKinematics_.reset();
     updateLocalKineAndContacts_();
     if(withAccelerationEstimation_)
     {
@@ -431,6 +434,8 @@ const Vector & KineticsObserver::update()
       estimateAccelerations();
     }
     updateGlobalKine_();
+
+    endIteration_();
   }
 
   return worldCentroidStateVector_;
@@ -896,9 +901,15 @@ void KineticsObserver::setContactWrenchSensorDefaultCovarianceMatrix(const Matri
   contactWrenchSensorCovMatDefault_ = wrenchSensorCovMat;
 }
 
-void KineticsObserver::updateContactPosProcessCovariance()
+void KineticsObserver::updateContactPoseProcessCovariance()
 {
-  if((!contactsChanged_ && !contactRestPosProcessChanged_ && !contactRestOriProcessChanged_)
+  Index nbCurrentContacts = getNumberOfSetContacts();
+
+  std::cout << std::endl << "nbCurrentContacts: " << getNumberOfSetContacts() << std::endl;
+  std::cout << std::endl << "nb_prevContacts_: " << nb_prevContacts_ << std::endl;
+
+  if(((getNumberOfSetContacts() == nb_prevContacts_) && !contactRestPosProcessChanged_
+      && !contactRestOriProcessChanged_)
      || getNumberOfSetContacts() == 0)
   {
     return;
@@ -906,31 +917,92 @@ void KineticsObserver::updateContactPosProcessCovariance()
 
   Matrix processCovMat = ekf_.getQ();
 
-  if(contactRestPosProcessChanged_ || contactsChanged_)
+  if(nbCurrentContacts < nb_prevContacts_)
   {
-    // exceptional case if there is only one contact!
-    if(getNumberOfSetContacts() == 1)
-    {
-      for(VectorContactConstIterator contact_it = contacts_.begin(); contact_it != contacts_.end(); ++contact_it)
-      {
-        if(contact_it->isSet)
-        {
-          // processCovMat.block(contactPosIndexTangent(contact_it), contactPosIndexTangent(contact_it), sizePosTangent,
-          //                     sizePosTangent) = contact_it->restPosProcessCovMat;
+    std::cout << std::endl << "WESH2" << std::endl;
+    Matrix stateCovMat = ekf_.getStateCovariance();
+    Matrix P_prime = stateCovMat.triangularView<Eigen::Lower>();
 
-          processCovMat
-              .block(contactPosIndexTangent(contact_it), contactPosIndexTangent(contact_it), sizePosTangent,
-                     sizePosTangent)
-              .setZero();
-          ekf_.setQ(processCovMat);
-          return;
-        }
+    std::cout << std::endl << "eigenValues before : " << std::endl << stateCovMat.eigenvalues() << std::endl;
+    std::vector<Index> removedIndexes;
+    for(Index removedContactIndex : removedContacts_)
+    {
+      std::cout << std::endl << "removedContactIndex: " << removedContactIndex << std::endl;
+      std::cout << std::endl << "removedIndexes: ";
+      for(Index s = 0; s < sizeContactTangent; s++)
+      {
+        removedIndexes.push_back(contactIndexTangent(removedContactIndex) + s);
+        std::cout << std::endl << contactIndexTangent(removedContactIndex) + s;
+        std::cout << ", ";
       }
     }
+    Eigen::IOFormat CleanFmt_(4, 0, ", ", "\n", "[", "]");
+    for(Index removedIndex : removedIndexes)
+    {
+      for(Index i = 0; i < stateCovMat.rows(); i++)
+      {
+        Eigen::MatrixXd Pbefore = P_prime;
+        Index rowsUntilEnd = P_prime.rows() - i - 1;
+        if(std::find(removedIndexes.begin(), removedIndexes.end(), i) == removedIndexes.end())
+        {
+          double P_bar_i_i = pow(P_prime(i, removedIndex), 2) / P_prime(removedIndex, removedIndex);
+          double coeff = sqrt((P_prime(i, i) - P_bar_i_i) / P_prime(i, i));
+          std::cout << std::endl << "coeff : " << std::endl << coeff << std::endl;
+          if(!std::isnan(P_bar_i_i) && !std::isnan(coeff))
+          {
+            P_prime.block(i, 0, 1, i) *= coeff;
+            P_prime.block(i + 1, i, rowsUntilEnd, 1) *= coeff;
+            P_prime(i, i) -= P_bar_i_i;
+            // std::cout << std::endl
+            //           << "P diff final: " << std::endl
+            //           << (P_prime - Pbefore).format(CleanFmt_) << std::endl;
+          }
+        }
+      }
+      Index rowsUntilEnd = P_prime.rows() - removedIndex - 1;
+      P_prime.block(removedIndex, 0, 1, removedIndex + 1).setZero();
+      P_prime.block(removedIndex + 1, removedIndex, rowsUntilEnd, 1).setZero();
 
-    Eigen::MatrixXd & M = m_matrices_.at(getNumberOfSetContacts() - 2);
+      processCovMat.block(removedIndex, 0, 1, processCovMat.cols()).setZero();
+      processCovMat.block(0, removedIndex, processCovMat.rows(), 1).setZero();
+    }
+    // std::cout << std::endl << "P before: " << std::endl << P_prime.format(CleanFmt_) << std::endl;
+    P_prime = P_prime.selfadjointView<Eigen::Lower>();
+    // std::cout << std::endl << "P after: " << std::endl << P_prime.format(CleanFmt_) << std::endl;
+    // std::cout << std::endl << "P diff final: " << std::endl << P_prime.format(CleanFmt_) << std::endl;
+    ekf_.setStateCovariance(P_prime);
+  }
 
-    Eigen::MatrixXd posProcessCov = Eigen::MatrixXd::Zero(getNumberOfSetContacts() * 3, getNumberOfSetContacts() * 3);
+  // exceptional case if there is only one contact!
+  if(nbCurrentContacts == 1)
+  {
+    for(VectorContactConstIterator contact_it = contacts_.begin(); contact_it != contacts_.end(); ++contact_it)
+    {
+      if(contact_it->isSet)
+      {
+        // processCovMat.block(contactPosIndexTangent(contact_it), contactPosIndexTangent(contact_it),
+        // sizePosTangent,
+        //                     sizePosTangent) = contact_it->restPosProcessCovMat;
+        processCovMat
+            .block(contactPosIndexTangent(contact_it), contactPosIndexTangent(contact_it), sizePosTangent,
+                   sizePosTangent)
+            .setZero();
+        processCovMat
+            .block(contactOriIndexTangent(contact_it), contactOriIndexTangent(contact_it), sizeOriTangent,
+                   sizeOriTangent)
+            .setZero();
+
+        ekf_.setQ(processCovMat);
+        return;
+      }
+    }
+  }
+
+  if(contactRestPosProcessChanged_ || nbCurrentContacts != nb_prevContacts_)
+  {
+    Eigen::MatrixXd & M = m_matrices_.at(nbCurrentContacts - 2);
+
+    Eigen::MatrixXd posProcessCov = Eigen::MatrixXd::Zero(nbCurrentContacts * 3, nbCurrentContacts * 3);
 
     int i = 0;
     for(auto & contact : contacts_)
@@ -964,33 +1036,11 @@ void KineticsObserver::updateContactPosProcessCovariance()
       }
     }
   }
-
-  if(contactRestOriProcessChanged_ || contactsChanged_)
+  if(contactRestOriProcessChanged_ || nbCurrentContacts != nb_prevContacts_)
   {
+    Eigen::MatrixXd & M_prime = m_prime_matrices_.at(nbCurrentContacts - 2);
 
-    // exceptional case if there is only one contact!
-    if(getNumberOfSetContacts() == 1)
-    {
-      for(VectorContactConstIterator contact_it = contacts_.begin(); contact_it != contacts_.end(); ++contact_it)
-      {
-        if(contact_it->isSet)
-        {
-          // processCovMat.block(contactOriIndexTangent(contact_it), contactOriIndexTangent(contact_it), sizeOriTangent,
-          //                     sizeOriTangent) = contact_it->restOriProcessCovMat;
-
-          processCovMat
-              .block(contactOriIndexTangent(contact_it), contactOriIndexTangent(contact_it), sizeOriTangent,
-                     sizeOriTangent)
-              .setZero();
-          ekf_.setQ(processCovMat);
-          return;
-        }
-      }
-    }
-
-    Eigen::MatrixXd & M_prime = m_prime_matrices_.at(getNumberOfSetContacts() - 2);
-
-    Eigen::MatrixXd oriProcessCov = Eigen::MatrixXd::Zero(getNumberOfSetContacts() * 3, getNumberOfSetContacts() * 3);
+    Eigen::MatrixXd oriProcessCov = Eigen::MatrixXd::Zero(nbCurrentContacts * 3, nbCurrentContacts * 3);
 
     int i = 0;
     for(auto & contact : contacts_)
@@ -1017,6 +1067,8 @@ void KineticsObserver::updateContactPosProcessCovariance()
           {
             processCovMat.block(contactOriIndexTangent(contact1_it), contactOriIndexTangent(contact2_it), 3, 3)
                 .setZero();
+            // we select only the elements of the resulting matrix associated to the yaw as we add no process on the
+            // roll and the pitch of the rest pose
             processCovMat(contactOriIndexTangent(contact1_it) + 2, contactOriIndexTangent(contact2_it) + 2) =
                 covM_prime_v((i * 3) + 2, (j * 3) + 2);
             j++;
@@ -1026,7 +1078,6 @@ void KineticsObserver::updateContactPosProcessCovariance()
       }
     }
   }
-
   ekf_.setQ(processCovMat);
 }
 
@@ -1266,8 +1317,6 @@ Index KineticsObserver::addContact(const Kinematics & worldContactRefKine,
   BOOST_ASSERT(!contacts_[contactNumber].isSet
                && "The contact already exists, please remove it before adding it again");
 
-  contactsChanged_ = true;
-
   Contact & contact = contacts_[static_cast<size_t>(contactNumber)]; /// reference
 
   contact.isSet = true; /// set the contacts
@@ -1350,7 +1399,7 @@ void KineticsObserver::removeContact(Index contactNbr)
   BOOST_ASSERT(contacts_[contactNbr].isSet && "Tried to remove a non-existing contact.");
   auto & c = contacts_[static_cast<size_t>(contactNbr)];
   c.isSet = false;
-  contactsChanged_ = true;
+  removedContacts_.insert(contactNbr);
   if(c.withRealSensor)
   {
     c.withRealSensor = false;
@@ -1802,9 +1851,20 @@ void KineticsObserver::startNewIteration_()
     }
     additionalForce_.setZero();
     additionalTorque_.setZero();
-    contactsChanged_ = false;
     contactRestPosProcessChanged_ = false;
     contactRestOriProcessChanged_ = false;
+  }
+}
+
+void KineticsObserver::endIteration_()
+{
+  if(k_est_ != k_data_)
+  {
+    ++k_est_; // the timestamp of the state we estimated
+
+    nb_prevContacts_ = getNumberOfSetContacts();
+
+    removedContacts_.clear();
   }
 }
 
@@ -2365,8 +2425,8 @@ void KineticsObserver::convertUserToCentroidFrame_(const Kinematics & userKine,
                                                    [[maybe_unused]] TimeIndex k_data)
 {
   /*
-  Our centroid frame has the same orientation than the user frame, so the conversion from the user to the centroid frame
-  simply depends on the linear kinematics of the center of mass in the user frame.
+  Our centroid frame has the same orientation than the user frame, so the conversion from the user to the centroid
+  frame simply depends on the linear kinematics of the center of mass in the user frame.
   */
   BOOST_ASSERT((com_.getTime() == k_data && com_.getTime() == comd_.getTime() && com_.getTime() == comdd_.getTime())
                && "The Center of Mass must be actualized before the conversion");
@@ -2397,8 +2457,8 @@ KineticsObserver::Kinematics KineticsObserver::convertUserToCentroidFrame_(const
                                                                            [[maybe_unused]] TimeIndex k_data)
 {
   /*
-  Our centroid frame has the same orientation than the user frame, so the conversion from the user to the centroid frame
-  simply depends on the linear kinematics of the center of mass in the user frame.
+  Our centroid frame has the same orientation than the user frame, so the conversion from the user to the centroid
+  frame simply depends on the linear kinematics of the center of mass in the user frame.
   */
 
   Kinematics centroidKine;

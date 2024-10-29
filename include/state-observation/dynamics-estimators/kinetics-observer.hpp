@@ -474,7 +474,7 @@ public:
   /// @details modifies the process covariance matrix Q such that the process noise on the rest contact positions allows
   /// them to move, but their average position remains unchanged. This allows for the relaxation of internal forces but
   /// prevents drifting.
-  void updateContactPosProcessCovariance();
+  void updateContactPoseCovariances();
 
   /// @brief Returns the predicted Kinematics object of the centroid in the world frame at the time of the measurement
   /// predictions
@@ -1377,6 +1377,8 @@ protected:
   VectorContact contacts_;
   VectorIMU imuSensors_;
 
+  std::set<Index> removedContacts_;
+
   Index stateSize_;
   Index stateTangentSize_;
   Index measurementSize_;
@@ -1423,7 +1425,8 @@ protected:
   Index currentIMUSensorNumber_;
 
   // indicates if a contact has been added or removed since the last iteration
-  bool contactsChanged_;
+  // bool contactsChanged_;
+  unsigned nb_prevContacts_;
   // indicates if a contact's process covariance on the rest position has been modified since the last iteration
   bool contactRestPosProcessChanged_;
   // indicates if a contact's process covariance on the rest orientation has been modified since the last iteration
@@ -1433,6 +1436,11 @@ protected:
   /// detects if there is a new estimation beginning and then
   /// calls the reset of the iteration
   void startNewIteration_();
+
+  /// @brief Function that is called at the end of an iteration
+  /// @details Can be used to reinitialize variables that might be used before startNewIteration_ on the next iteration
+  /// (ex: when adding or removing contacts.)
+  void endIteration_();
 
   /// @brief Converts a LocalKinematics object from the user's frame to the centroid's frame, which is used for most of
   /// the computations
