@@ -60,6 +60,7 @@ jrl_target_headers(
   state-observation
   PUBLIC
   HEADERS
+  # observer
   ../include/state-observation/observer/tilt-estimator.hpp
   ../include/state-observation/observer/tilt-estimator-humanoid.hpp
   ../include/state-observation/observer/extended-kalman-filter.hpp
@@ -67,15 +68,23 @@ jrl_target_headers(
   ../include/state-observation/observer/linear-kalman-filter.hpp
   ../include/state-observation/observer/observer-base.hpp
   ../include/state-observation/observer/zero-delay-observer.hpp
+  ../include/state-observation/observer/delayed-measurements-complem-filter.hpp
+  ../include/state-observation/observer/delayed-measurements-observer.hpp
+  ../include/state-observation/observer/delayed-measurements-observer.hxx
+  ../include/state-observation/observer/waiko-humanoid.hpp
+  # sensors-simulation
   ../include/state-observation/sensors-simulation/sensor-base.hpp
   ../include/state-observation/sensors-simulation/algebraic-sensor.hpp
   ../include/state-observation/sensors-simulation/accelerometer-gyrometer.hpp
   ../include/state-observation/sensors-simulation/accelerometer-gyrometer-magnetometer.hpp
+  # noise
   ../include/state-observation/noise/noise-base.hpp
   ../include/state-observation/noise/gaussian-white-noise.hpp
+  # sensors-simulation/algorithm
   ../include/state-observation/sensors-simulation/algorithm/rotation-velocity.hpp
   ../include/state-observation/sensors-simulation/algorithm/linear-acceleration.hpp
   ../include/state-observation/sensors-simulation/algorithm/magnetic-field.hpp
+  # tools
   ../include/state-observation/tools/definitions.hpp
   ../include/state-observation/tools/definitions.hxx
   ../include/state-observation/tools/hrp2.hpp
@@ -87,12 +96,23 @@ jrl_target_headers(
   ../include/state-observation/tools/logger.hpp
   ../include/state-observation/tools/logger.hxx
   ../include/state-observation/tools/state-vector-arithmetics.hpp
+  # tools/measurements-manager
+  ../include/state-observation/tools/measurements-manager/Contact.hpp
+  ../include/state-observation/tools/measurements-manager/ContactsManager.hpp
+  ../include/state-observation/tools/measurements-manager/ContactsManager.hxx
+  ../include/state-observation/tools/measurements-manager/IMU.hpp
+  ../include/state-observation/tools/measurements-manager/Sensor.hpp
+  # odometry
+  ../include/state-observation/tools/odometry/legged-odometry-manager.hpp
+  ../include/state-observation/tools/odometry/legged-odometry-manager.hxx
+  # dynamical-system
   ../include/state-observation/dynamical-system/dynamical-system-functor-base.hpp
   ../include/state-observation/dynamical-system/dynamical-system-simulator.hpp
   ../include/state-observation/dynamical-system/imu-dynamical-system.hpp
   ../include/state-observation/dynamical-system/imu-mltpctive-dynamical-system.hpp
   ../include/state-observation/dynamical-system/imu-magnetometer-dynamical-system.hpp
   ../include/state-observation/dynamical-system/bidim-elastic-inv-pendulum-dyn-sys.hpp
+  # flexibility-estimation
   ../include/state-observation/flexibility-estimation/flexibility-estimator-base.hpp
   ../include/state-observation/flexibility-estimation/ekf-flexibility-estimator-base.hpp
   ../include/state-observation/flexibility-estimation/fixed-contact-ekf-flex-estimator-imu.hpp
@@ -100,11 +120,13 @@ jrl_target_headers(
   ../include/state-observation/flexibility-estimation/imu-fixed-contact-dynamical-system.hpp
   ../include/state-observation/flexibility-estimation/stable-imu-fixed-contact-dynamical-system.hpp
   ../include/state-observation/flexibility-estimation/imu-elastic-local-frame-dynamical-system.hpp
+  # dynamics-estimators
   ../include/state-observation/dynamics-estimators/kinetics-observer.hpp
   ../include/state-observation/dynamics-estimators/kinetics-observer.hxx
   ../include/state-observation/dynamics-estimators/lipm-dcm-estimator.hpp
   ../include/state-observation/dynamics-estimators/unidim-lipm-dcm-estimator.hpp
   ../include/state-observation/dynamics-estimators/zmp-tracking-gain-estimator.hpp
+  # examples
   ../include/state-observation/examples/imu-attitude-trajectory-reconstruction.hpp
   ../include/state-observation/examples/imu-attitude-trajectory-reconstruction.hxx
   ../include/state-observation/examples/imu-multiplicative-attitude-reconstruction.hpp
